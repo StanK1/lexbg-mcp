@@ -69,6 +69,18 @@ export function findRoot(start = path.dirname(fileURLToPath(import.meta.url))): 
 
 let cached: Registry | null = null;
 
+/** Registry stored inside a database by build-db (meta key "registry"), so a downloaded DB is self-contained. */
+export function registryFromJson(json: string, root = '(database)'): Registry {
+  const doc = JSON.parse(json) as Omit<Registry, 'root'>;
+  const reg: Registry = { root, laws: doc.laws ?? [], eu: doc.eu ?? [], topics: doc.topics ?? [] };
+  validate(reg);
+  return reg;
+}
+
+export function registryToJson(reg: Registry): string {
+  return JSON.stringify({ laws: reg.laws, eu: reg.eu, topics: reg.topics });
+}
+
 export function loadRegistry(root = findRoot()): Registry {
   if (cached && cached.root === root) return cached;
   const read = <T>(file: string, key: string): T[] => {

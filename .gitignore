@@ -8,3 +8,4 @@ data/eval-report.json
 .env
 .DS_Store
 release/
+*.tgz

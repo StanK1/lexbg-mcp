@@ -43,52 +43,60 @@ Most tools index whatever text they can find and label it "in force". LexBG is b
 | `compliance_checklist` | Profile in (ЕООД, employees, sells online…) → applicable topics, reasons, provisions to read |
 | `get_obligations` | Structured obligations (who / must / deadline) with verified verbatim quotes — optional AI layer |
 
-## Quick start
+**Prompts** (slash commands in clients that support them): `legal_research`, `compliance_review`, `whats_new`, `check_citations`.
 
-**You need:** Node.js **22.13 or newer** (`node --version`) and git. A detailed walkthrough with troubleshooting is in [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md).
+## Quick start (1 minute)
 
-```bash
-git clone https://github.com/StanK1/LexBG.git
-cd LexBG
-npm install
-npm run build
+**You need:** Node.js **22.13 or newer** (`node --version`). Nothing to clone or build.
 
-# 1. Download data from official sources (resumable — safe to stop and re-run)
-npm run fetch:parliament -- --only-tracked   # fast start: acts whose title names a tracked law (~10 min)
-npm run fetch:parliament                     # complete: all acts, needed for hidden amendments (~45 min)
-npm run fetch:eurlex                         # EU acts in Bulgarian (~1 min)
-
-# 2. Build the local database and see what you have
-npm run build:db
-npm run coverage
-```
-
-The database is written to `data/lexbg.db`. Re-run the same commands any time to pick up new acts (`npm run fetch:parliament -- --refresh` refreshes the catalogue).
-
-### Connect it to an MCP client
-
-**Claude Desktop** — Settings → Developer → Edit config, then add (use your own absolute path):
+**Claude Desktop** — Settings → Developer → Edit Config, add:
 
 ```json
 {
   "mcpServers": {
     "lexbg": {
-      "command": "node",
-      "args": ["/Users/you/LexBG/dist/src/index.js"]
+      "command": "npx",
+      "args": ["-y", "https://github.com/StanK1/LexBG/releases/latest/download/lexbg.tgz"]
     }
   }
 }
 ```
 
-Restart Claude Desktop; the LexBG tools appear in the tools menu.
+Restart Claude Desktop; the LexBG tools and prompts appear in the tools menu.
 
 **Claude Code**
 
 ```bash
-claude mcp add lexbg -- node /Users/you/LexBG/dist/src/index.js
+claude mcp add lexbg -- npx -y https://github.com/StanK1/LexBG/releases/latest/download/lexbg.tgz
 ```
 
-**Any other MCP client** — run `node dist/src/index.js` as a stdio server. Optional environment variables: `LEXBG_DB` (database path), `LEXBG_ROOT` (repository folder).
+**Docker** (any MCP client that can run a command)
+
+```bash
+docker run -i --rm -v lexbg-data:/data ghcr.io/stank1/lexbg
+```
+
+On first start LexBG downloads the ready-made database (rebuilt every week from parliament.bg and EUR-Lex, checksum-verified) to `~/.lexbg/`. After that it starts instantly, works offline, and checks once a day for the next weekly build. Tool calls made during the first download simply wait for it.
+
+**Recommended:** install the Claude skill [`skills/lexbg-research`](skills/lexbg-research/SKILL.md) (`lexbg-research-skill.zip` in the [latest release](https://github.com/StanK1/LexBG/releases/latest)) so Claude follows the full research method. [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) explains what the model sees and how it decides which tool to call.
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `LEXBG_DB` | – | Use this database file instead of downloading |
+| `LEXBG_HOME` | `~/.lexbg` | Where the downloaded database lives |
+| `LEXBG_OFFLINE=1` | off | Never use the network (needs a cached or local database) |
+
+### Build the data yourself (contributors)
+
+```bash
+git clone https://github.com/StanK1/LexBG.git && cd LexBG
+npm install && npm run build
+npm run fetch:parliament        # all acts (~45 min the first time; resumable)
+npm run fetch:eurlex            # EU acts via the Publications Office API
+npm run build:db && npm run coverage && npm run smoke
+```
+
+A database you build in the repository (`data/lexbg.db`) takes priority over the downloaded one. Step-by-step guide with troubleshooting: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md).
 
 ### Try it
 
@@ -139,7 +147,8 @@ flowchart LR
   R --> B[build:db<br/>parse · link amendments · EU refs]
   Y[sources/*.yml<br/>laws · EU acts · topics] --> B
   B --> D[(data/lexbg.db<br/>SQLite + FTS5)]
-  D --> S[LexBG MCP server<br/>stdio]
+  D --> W[weekly GitHub Action<br/>publishes lexbg.db.gz]
+  W --> S[LexBG MCP server<br/>stdio · downloads on first start]
   S --> C[Claude / any MCP client]
 ```
 
@@ -181,14 +190,10 @@ Code licensed under the [MIT License](LICENSE).
 
 **LexBG** е MCP сървър с отворен код, който дава на AI асистенти достъп до българското законодателство с точни цитати, история на измененията и карта на задълженията по теми (регистрация на фирма, счетоводство, ДДС, трудово право, ЗМИП, лични данни, потребители, еврото и др.).
 
-Работи изцяло локално:
+Инсталация за една минута — добавете в Claude Desktop (Settings → Developer → Edit Config):
 
-```bash
-git clone https://github.com/StanK1/LexBG.git && cd LexBG
-npm install && npm run build
-npm run fetch:parliament -- --only-tracked
-npm run fetch:eurlex
-npm run build:db && npm run coverage
+```json
+{ "mcpServers": { "lexbg": { "command": "npx", "args": ["-y", "https://github.com/StanK1/LexBG/releases/latest/download/lexbg.tgz"] } } }
 ```
 
-След това добавете `node <път>/LexBG/dist/src/index.js` като MCP сървър в Claude Desktop или Claude Code. Всеки отговор съдържа предупреждение дали текстът е актуален (консолидиран), оригинален (без последващите изменения) или липсва. LexBG е инструмент за проучване, а не правен съвет.
+При първо стартиране LexBG изтегля готовата база данни (обновява се всяка седмица от parliament.bg и EUR-Lex) и след това стартира веднага и работи офлайн. Всеки отговор съдържа предупреждение дали текстът е актуален (консолидиран), оригинален (без последващите изменения) или липсва. LexBG е инструмент за проучване, а не правен съвет.

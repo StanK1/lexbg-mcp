@@ -82,6 +82,12 @@ describe('parseEuAct', () => {
     expect(out[0].text.startsWith('Член 1 — Предмет')).toBe(true);
     expect(out[0].chapter).toBe('ГЛАВА I — Общи разпоредби');
   });
+
+  it('treats "Член N" lines inside annexes as annex text (no duplicate articles)', () => {
+    const out = parseEuAct(['Член 1', 'Предмет', 'Текст.', 'ПРИЛОЖЕНИЕ', 'Таблица на съответствието', 'Член 1', 'Член 1 от Директива 95/46/ЕО']);
+    expect(out.map(p => p.label)).toEqual(['Член 1', 'Приложение 1']);
+    expect(out[1].text).toContain('Член 1 от Директива 95/46/ЕО');
+  });
 });
 
 describe('extractEuReferences', () => {

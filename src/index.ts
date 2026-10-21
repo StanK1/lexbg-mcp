@@ -1,20 +1,30 @@
 #!/usr/bin/env node
 /**
- * LexBG MCP server (stdio). Point your MCP client at:  node /path/to/LexBG/dist/src/index.js
- * Environment: LEXBG_DB (database path), LEXBG_ROOT (repository folder).
+ * LexBG MCP server (stdio).
+ *
+ *   npx -y https://github.com/StanK1/LexBG/releases/latest/download/lexbg.tgz
+ *   node /path/to/LexBG/dist/src/index.js
+ *
+ * The server answers the MCP handshake immediately. On first run it downloads the weekly
+ * prebuilt database (~1 min at most) — tool calls made meanwhile simply wait for it.
+ * Environment: LEXBG_DB, LEXBG_HOME, LEXBG_DATA_URL, LEXBG_OFFLINE=1 (see src/data.ts).
  */
 import './quiet.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { defaultDbPath, openDb } from './db.js';
-import { loadRegistry } from './registry.js';
+import { openDb } from './db.js';
+import { resolveDatabase } from './data.js';
 import { createServer } from './server.js';
 
 async function main(): Promise<void> {
-  const db = openDb(defaultDbPath(), { readOnly: true });
-  const server = createServer(db, loadRegistry());
+  const db = resolveDatabase().then(r => {
+    // stdout is the MCP channel — log to stderr only.
+    console.error(`[lexbg] database: ${r.file} (${r.source})`);
+    return openDb(r.file, { readOnly: true });
+  });
+  db.catch(err => console.error(`[lexbg] ${err instanceof Error ? err.message : String(err)}`));
+  const server = createServer(db);
   await server.connect(new StdioServerTransport());
-  // stdout is the MCP channel — log to stderr only.
-  console.error(`LexBG MCP server running (database: ${defaultDbPath()})`);
+  console.error('[lexbg] MCP server running');
 }
 
 main().catch(err => {

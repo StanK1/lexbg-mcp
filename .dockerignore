@@ -1,0 +1,9 @@
+node_modules
+dist
+data
+release
+.git
+tests
+fixtures
+evals
+*.tgz

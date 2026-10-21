@@ -12,7 +12,7 @@ import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import YAML from 'yaml';
 import { createSchema, defaultDbPath, openDb, type Db } from '../src/db.js';
-import { loadRegistry, type LawEntry } from '../src/registry.js';
+import { loadRegistry, registryToJson, type LawEntry } from '../src/registry.js';
 import { htmlToLines, textToLines } from '../src/text/html.js';
 import { parseBulgarianAct, type ParsedProvision } from '../src/text/parse-bg.js';
 import { extractEuTitle, parseEuAct } from '../src/text/parse-eu.js';
@@ -109,8 +109,13 @@ function insertProvisions(db: Db, lawId: string, provisions: ParsedProvision[]):
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const fts = db.prepare('INSERT INTO provisions_fts (rowid, text, label, chapter) VALUES (?, ?, ?, ?)');
   const ref = db.prepare('INSERT INTO eu_refs (provision_id, law_id, celex, citation) VALUES (?, ?, ?, ?)');
+  const seen = new Set<string>();
   for (const p of provisions) {
-    const r = ins.run(lawId, p.ord, p.kind, p.num, p.part, p.partKey, p.partTitle ?? null, p.chapter ?? null, p.label, p.text);
+    // Sources occasionally repeat a number (misprints, quoted articles); keep both, disambiguated.
+    let partKey = p.partKey;
+    for (let n = 2; seen.has(`${p.kind}|${p.num}|${partKey}`); n++) partKey = `${p.partKey}~${n}`;
+    seen.add(`${p.kind}|${p.num}|${partKey}`);
+    const r = ins.run(lawId, p.ord, p.kind, p.num, p.part, partKey, p.partTitle ?? null, p.chapter ?? null, p.label, p.text);
     const id = Number(r.lastInsertRowid);
     fts.run(id, p.text, p.label, p.chapter ?? '');
     for (const e of extractEuReferences(p.text)) ref.run(id, lawId, e.celex, e.text);
@@ -211,9 +216,14 @@ export function buildDatabase(outPath?: string): { out: string; summary: string;
     let provisions: ParsedProvision[] = [];
     let title = eu.title;
     if (fs.existsSync(file)) {
-      const lines = htmlToLines(fs.readFileSync(file, 'utf8'));
-      provisions = parseEuAct(lines);
-      title = extractEuTitle(lines) ?? eu.title;
+      try {
+        const lines = htmlToLines(fs.readFileSync(file, 'utf8'));
+        provisions = parseEuAct(lines);
+        title = extractEuTitle(lines) ?? eu.title;
+      } catch (err) {
+        warn(`${eu.short} (${eu.celex}): could not parse ${file}: ${(err as Error).message}`);
+        provisions = [];
+      }
     }
     insLaw.run(eu.celex, 'eu', eu.short, title, JSON.stringify(eu.topics), provisions.length ? 'original' : 'missing',
       provisions.length ? 'eur-lex' : null,
@@ -250,9 +260,16 @@ export function buildDatabase(outPath?: string): { out: string; summary: string;
   meta.run('built_at', new Date().toISOString());
   meta.run('latest_act_date', acts.length ? (acts[acts.length - 1].date ?? '') : '');
   meta.run('acts', String(acts.length));
-  // Keep the text of acts only where it matters (acts that amend/repeal a tracked law) — the rest
-  // of parliament's output (ratifications, budgets' unrelated §, ...) would only bloat the file.
-  db.exec('DELETE FROM act_sections WHERE act_id NOT IN (SELECT act_id FROM amendments)');
+  // The registry travels with the database, so an older LexBG install can serve a newer weekly build.
+  meta.run('registry', registryToJson(reg));
+
+  // Keep act text only where the tools use it: every section of acts that amend or repeal a tracked
+  // law directly, and only the listed § of acts that amend one indirectly (a budget law that amends
+  // the VAT Act in one § does not need its other 300 §). Titles, dates and ДВ stay for every act.
+  db.exec(`DELETE FROM act_sections
+            WHERE act_id NOT IN (SELECT act_id FROM amendments WHERE mode IN ('direct', 'repeal'))
+              AND NOT EXISTS (SELECT 1 FROM amendments m, json_each(m.section_ords) j
+                               WHERE m.act_id = act_sections.act_id AND m.mode = 'indirect' AND j.value = act_sections.ord)`);
   const broken = db.prepare('PRAGMA foreign_key_check').all();
   if (broken.length) throw new Error(`Database integrity check failed: ${JSON.stringify(broken.slice(0, 5))}`);
   db.exec('COMMIT');
@@ -271,7 +288,19 @@ export function buildDatabase(outPath?: string): { out: string; summary: string;
   return { out, summary: `${acts.length} acts, ${obligations} obligations. ${report.summary}`, acts: acts.length };
 }
 
+function warn(msg: string): void {
+  console.warn(process.env.GITHUB_ACTIONS ? `::warning title=build-db::${msg}` : `warning: ${msg}`);
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const result = buildDatabase(argValue('--out'));
-  console.log(`Built ${path.relative(process.cwd(), result.out)}: ${result.summary}`);
+  try {
+    const result = buildDatabase(argValue('--out'));
+    console.log(`Built ${path.relative(process.cwd(), result.out)}: ${result.summary}`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // On GitHub Actions, surface the reason as an annotation (visible without opening the log).
+    if (process.env.GITHUB_ACTIONS) console.log(`::error title=build-db failed::${msg.replace(/\n/g, ' ')}`);
+    console.error(err);
+    process.exit(1);
+  }
 }

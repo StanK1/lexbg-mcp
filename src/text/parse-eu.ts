@@ -42,7 +42,8 @@ export function parseEuAct(lines: string[]): ParsedProvision[] {
       continue;
     }
 
-    const art = line.match(ARTICLE);
+    // Once the annexes start, "Член N" lines are quotations or correlation tables, not articles.
+    const art = annexCount === 0 ? line.match(ARTICLE) : null;
     if (art) {
       flush();
       started = true;

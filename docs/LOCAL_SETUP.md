@@ -1,6 +1,8 @@
 # Local setup — step by step
 
-This guide takes you from an empty folder to LexBG answering questions in Claude Desktop. Total time: about 15 minutes for the quick start, plus ~45 minutes of unattended downloading for the complete catalogue.
+> **Just want to use LexBG?** You don't need this guide — add the one-line `npx` config from the [README quick start](../README.md#quick-start-1-minute) and LexBG downloads the weekly prebuilt database by itself.
+
+This guide is for building the database **yourself** (to contribute, to add consolidated texts, or to work fully offline from the sources). It takes you from an empty folder to LexBG answering questions in Claude Desktop. Total time: about 15 minutes, plus ~45 minutes of unattended downloading for the complete catalogue.
 
 ## 1. Check Node.js
 
