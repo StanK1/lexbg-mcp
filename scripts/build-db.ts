@@ -250,10 +250,15 @@ export function buildDatabase(outPath?: string): { out: string; summary: string;
   meta.run('built_at', new Date().toISOString());
   meta.run('latest_act_date', acts.length ? (acts[acts.length - 1].date ?? '') : '');
   meta.run('acts', String(acts.length));
+  // Keep the text of acts only where it matters (acts that amend/repeal a tracked law) — the rest
+  // of parliament's output (ratifications, budgets' unrelated §, ...) would only bloat the file.
+  db.exec('DELETE FROM act_sections WHERE act_id NOT IN (SELECT act_id FROM amendments)');
   const broken = db.prepare('PRAGMA foreign_key_check').all();
   if (broken.length) throw new Error(`Database integrity check failed: ${JSON.stringify(broken.slice(0, 5))}`);
   db.exec('COMMIT');
   db.exec("INSERT INTO provisions_fts(provisions_fts) VALUES('optimize')");
+  db.exec('PRAGMA journal_mode = DELETE');
+  db.exec('VACUUM');
   db.close();
 
   for (const f of [out, `${out}-wal`, `${out}-shm`]) if (fs.existsSync(f)) fs.rmSync(f);

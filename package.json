@@ -25,7 +25,8 @@
     "setup": "npm run build && npm run fetch:parliament -- --only-tracked && npm run fetch:eurlex && npm run build:db && npm run coverage && npm run smoke",
     "test": "vitest run",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "release:data": "tsx scripts/release-data.ts"
   },
   "keywords": [
     "mcp",

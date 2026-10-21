@@ -1,0 +1,71 @@
+name: Build database
+
+# Rebuilds data/lexbg.db from parliament.bg and EUR-Lex every week and publishes it as the
+# assets of the "data" release. LexBG downloads it from there on first start.
+on:
+  schedule:
+    - cron: '17 3 * * 1'   # Mondays 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-database
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      # Raw downloads are cached between runs, so after the first run only new acts are fetched.
+      - name: Restore raw downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: data/raw
+          key: raw-v1-${{ github.run_id }}
+          restore-keys: raw-v1-
+
+      - name: Fetch acts from parliament.bg
+        run: node dist/scripts/fetch-parliament.js --refresh
+
+      - name: Fetch EU acts (Cellar / EUR-Lex)
+        continue-on-error: true
+        run: node dist/scripts/fetch-eurlex.js
+
+      - name: Save raw downloads
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/raw
+          key: raw-v1-${{ github.run_id }}
+
+      - name: Build database
+        run: node dist/scripts/build-db.js
+
+      - name: Quality checks
+        run: |
+          npm test
+          node dist/scripts/smoke.js
+          node dist/scripts/coverage.js
+
+      - name: Package
+        run: node dist/scripts/release-data.js
+
+      - name: Publish to the "data" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view data >/dev/null 2>&1 || \
+            gh release create data --prerelease --title "LexBG database (weekly)" --notes "Created by the Build database workflow."
+          gh release upload data release/lexbg.db.gz release/lexbg-manifest.json release/coverage.md --clobber
+          gh release edit data --notes-file release/notes.md

@@ -29,7 +29,7 @@ export class PoliteFetcher {
     this.last = Date.now();
   }
 
-  async text(url: string, accept = 'text/html,application/xhtml+xml,*/*'): Promise<string> {
+  async text(url: string, accept = 'text/html,application/xhtml+xml,*/*', headers: Record<string, string> = {}): Promise<string> {
     let lastError: unknown;
     for (let attempt = 0; attempt <= this.retries; attempt++) {
       await this.wait();
@@ -37,7 +37,8 @@ export class PoliteFetcher {
       const timer = setTimeout(() => ctrl.abort(), this.timeoutMs);
       try {
         const res = await fetch(url, {
-          headers: { 'User-Agent': USER_AGENT, Accept: accept, 'Accept-Language': 'bg,en;q=0.5' },
+          headers: { 'User-Agent': USER_AGENT, Accept: accept, 'Accept-Language': 'bg,en;q=0.5', ...headers },
+          redirect: 'follow',
           signal: ctrl.signal,
         });
         if (res.status === 429 || res.status >= 500) throw new Error(`HTTP ${res.status}`);
