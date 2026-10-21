@@ -53,6 +53,15 @@ describe('parseBulgarianAct', () => {
     expect(amending[1].text).toContain('Чл. 52б. (1)');
   });
 
+  it('splits "§ 114 ." labels written with a space before the dot', () => {
+    const act = parseBulgarianAct([
+      '§ 113. В Закона за X (обн., ДВ, бр. 1 от 2000 г.) думите „а“ се заменят с „б“.',
+      '§ 114 . В Закона за счетоводството (обн., ДВ, бр. 95 от 2015 г.) в чл. 1 думите „в“ се заменят с „г“.',
+    ]);
+    expect(act.map(p => p.label)).toEqual(['§ 113', '§ 114']);
+    expect(act[1].text.startsWith('§ 114 . В Закона за счетоводството')).toBe(true);
+  });
+
   it('detects part headings strictly', () => {
     expect(detectPart('ДОПЪЛНИТЕЛНА РАЗПОРЕДБА')).toBe('dr');
     expect(detectPart('Преходни и заключителни разпоредби')).toBe('pzr');

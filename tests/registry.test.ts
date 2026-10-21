@@ -58,6 +58,7 @@ describe('amendment detection', () => {
     expect(indirectTarget('§ 43. В Закона за счетоводството (обн., ДВ, бр. 95 от 2015 г.) се правят следните изменения:', reg.laws)?.id).toBe('zsch');
     expect(indirectTarget('§ 7. В чл. 5, ал. 1 от Закона за корпоративното подоходно облагане (обн., ДВ ...) думите ...', reg.laws)?.id).toBe('zkpo');
     expect(indirectTarget('§ 12. В Кодекса за социално осигуряване (обн., ДВ ...) се правят следните изменения:', reg.laws)?.id).toBe('kso');
+    expect(indirectTarget('§ 114 . В Закона за счетоводството (обн., ДВ, бр. 95 от 2015 г.) в чл. 1 думите ...', reg.laws)?.id).toBe('zsch');
     expect(indirectTarget('§ 3. Министърът на финансите издава наредба по Закона за счетоводството.', reg.laws)).toBeNull();
     // "Закона за счетоводството" must not match a longer, different law name
     expect(indirectTarget('§ 4. В Закона за счетоводството на бюджетните организации (обн., ДВ ...) се правят изменения:', reg.laws)).toBeNull();

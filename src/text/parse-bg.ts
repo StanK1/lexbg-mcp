@@ -37,8 +37,8 @@ const PART_HEADING =
   /^(допълнителн[аи]|преходн[аи](?:\s+и\s+заключителн[аи])?|заключителн[аи])\s+разпоредб[аи](?:\s+(?:към|на)\s+.+)?$/iu;
 
 const CHAPTER_HEADING = /^(глава|раздел|отдел|част)(?![\p{L}\p{N}])\s*.*$/iu;
-const ARTICLE = /^Чл\.\s*(\d+[а-яё]?)\.\s*(.*)$/u;
-const PARAGRAPH = /^§\s*(\d+[а-яё]?)\.\s*(.*)$/u;
+const ARTICLE = /^Чл\.\s*(\d+[а-яё]?)\s*\.\s*(.*)$/u;
+const PARAGRAPH = /^§\s*(\d+[а-яё]?)\s*\.\s*(.*)$/u;
 
 export function detectPart(line: string): PartCode | null {
   const m = line.match(PART_HEADING);

@@ -1,0 +1,40 @@
+name: Raw data snapshot
+
+# Maintainer tool: packs the cached raw downloads (parliament.bg acts) into a draft release
+# asset, so the full build can be reproduced and debugged on a machine without access to
+# parliament.bg. The draft release is not visible to the public.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci && npm run build
+      - name: Restore raw downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: data/raw
+          key: raw-v1-${{ github.run_id }}
+          restore-keys: raw-v1-
+      - name: Top up with new acts
+        run: node dist/scripts/fetch-parliament.js --refresh
+      - name: Pack
+        run: |
+          tar -czf raw-parliament.tgz -C data/raw parliament
+          ls -la raw-parliament.tgz
+      - name: Upload to the draft "raw-snapshot" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view raw-snapshot >/dev/null 2>&1 || \
+            gh release create raw-snapshot --draft --title "Raw parliament.bg snapshot (maintainers)" --notes "Draft. Created by the Raw data snapshot workflow."
+          gh release upload raw-snapshot raw-parliament.tgz --clobber

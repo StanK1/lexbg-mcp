@@ -61,7 +61,7 @@ export function repealTarget(title: string, laws: LawEntry[]): LawEntry | null {
  */
 export function indirectTarget(sectionText: string, laws: LawEntry[]): LawEntry | null {
   const firstLine = sectionText.split('\n')[0].slice(0, 600);
-  const lead = '^(?:§|Чл\\.)\\s*\\d+[а-я]?\\.\\s*(?:\\(\\d+\\)\\s*)?В\\s+(?:[^;()]{0,120}?\\s+от\\s+)?';
+  const lead = '^(?:§|Чл\\.)\\s*\\d+[а-я]?\\s*\\.\\s*(?:\\(\\d+\\)\\s*)?В\\s+(?:[^;()]{0,120}?\\s+от\\s+)?';
   return bestMatch(firstLine, laws, g => new RegExp(`${lead}${escapeRe(g)}${after}\\s*[(,]`, 'u'));
 }
 
