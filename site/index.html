@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LexBG</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="LexBG is an open-source MCP server that gives AI assistants verbatim, cited access to Bulgarian legislation, its amendment history and compliance maps.">
+<meta property="og:title" content="LexBG — Bulgarian law for AI assistants">
+<meta property="og:description" content="Verbatim, cited, and honest about what is current. Open-source MCP server for Claude and other AI assistants.">
+<meta property="og:image" content="https://raw.githubusercontent.com/StanK1/lexbg-mcp/main/docs/assets/hero.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316202B'/%3E%3Ctext x='32' y='45' font-size='38' text-anchor='middle' fill='%23F6F7F5' font-family='Arial'%3E%C2%A7%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Unbounded:wght@500;600;700&display=swap">
+<style>
+/* Layout concept: a law page — a narrow reading column with "provision cards" set off like quoted articles,
+   status chips that carry meaning (current / original / missing), and one data story: the amendment timeline. */
+:root {
+  --paper: #F6F7F5; --surface: #FFFFFF; --ink: #16202B; --muted: #56616D; --line: #DCE1DD;
+  --accent: #0E7A5A; --accent-soft: #E2F1EA; --amber: #9A5A00; --amber-soft: #FBEFD8; --red: #B3261E; --red-soft: #FBE3E1;
+  --code-bg: #EEF1EE;
+  --display: 'Unbounded', 'Golos Text', system-ui, sans-serif;
+  --body: 'Golos Text', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --radius: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0E1418; --surface: #151D23; --ink: #E5EBE8; --muted: #9AA6AE; --line: #26323A;
+    --accent: #3DC593; --accent-soft: #11352A; --amber: #EFA73C; --amber-soft: #3A2A10; --red: #F08A82; --red-soft: #3C1A18;
+    --code-bg: #1B252C; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0E1418; --surface: #151D23; --ink: #E5EBE8; --muted: #9AA6AE; --line: #26323A;
+  --accent: #3DC593; --accent-soft: #11352A; --amber: #EFA73C; --amber-soft: #3A2A10; --red: #F08A82; --red-soft: #3C1A18;
+  --code-bg: #1B252C; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+code, .mono { font-family: var(--mono); font-size: 0.9em; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { margin: 0; }
+
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+section { padding-block: 72px; }
+.eyebrow { font: 600 13px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+h2 { font: 600 clamp(26px, 3.4vw, 36px)/1.2 var(--display); letter-spacing: -0.01em; margin-top: 12px; }
+.lead { color: var(--muted); font-size: 19px; margin-top: 14px; max-width: 68ch; }
+
+/* header */
+header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--paper); }
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 62px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font: 700 20px/1 var(--display); }
+.brand b { color: var(--accent); font-weight: 700; }
+.sect { width: 32px; height: 32px; border-radius: 9px; background: var(--ink); color: var(--paper); display: grid; place-items: center; font: 600 19px/1 var(--display); }
+.nav ul { display: flex; gap: 22px; list-style: none; margin: 0; padding: 0; font-size: 15px; }
+.nav ul a { color: var(--muted); text-decoration: none; }
+.nav ul a:hover { color: var(--ink); }
+.btn { display: inline-flex; align-items: center; gap: 8px; font: 600 15px/1 var(--body); padding: 11px 16px; border-radius: 10px; text-decoration: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+@media (max-width: 760px) { .nav ul { display: none; } }
+
+/* hero */
+.hero { padding-block: 64px 56px; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: 48px; align-items: center; }
+.hero h1 { font: 700 clamp(34px, 5vw, 56px)/1.08 var(--display); letter-spacing: -0.02em; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero .lead { font-size: 20px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.install { margin-top: 26px; display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 10px 10px 16px; max-width: 100%; }
+.install code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; color: var(--muted); font-size: 14px; scrollbar-width: none; }
+.install code span { color: var(--accent); }
+.copy { flex: none; font: 600 13px/1 var(--body); padding: 8px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; }
+@media (max-width: 880px) { .hero { grid-template-columns: minmax(0, 1fr); } }
+
+/* provision card */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 26px 28px; box-shadow: 0 30px 60px -40px rgba(10, 20, 30, .45); min-width: 0; }
+.cite { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; font: 500 22px/1.2 var(--mono); }
+.cite small { font: 400 13px/1.3 var(--body); color: var(--muted); }
+.quote { margin-top: 18px; border-left: 3px solid var(--accent); padding-left: 16px; font-size: 16.5px; line-height: 1.6; }
+.quote mark { background: var(--accent-soft); color: var(--ink); border-radius: 4px; padding: 0 3px; }
+.meta { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.src { font-size: 13.5px; color: var(--muted); }
+.chip { display: inline-flex; align-items: center; gap: 8px; font: 500 14px/1.25 var(--body); padding: 7px 12px; border-radius: 999px; width: fit-content; max-width: 100%; }
+.chip i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.chip.orig { background: var(--amber-soft); color: var(--amber); } .chip.orig i { background: var(--amber); }
+.chip.cons { background: var(--accent-soft); color: var(--accent); } .chip.cons i { background: var(--accent); }
+.chip.miss { background: var(--red-soft); color: var(--red); } .chip.miss i { background: var(--red); }
+
+/* stats + timeline */
+.band { background: var(--surface); border-block: 1px solid var(--line); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin-top: 36px; }
+.stat b { display: block; font: 600 clamp(26px, 3vw, 34px)/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 15px; }
+.stat.hl b { color: var(--amber); }
+@media (max-width: 760px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.chart { margin-top: 40px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 640px; height: auto; }
+.chart text { font-family: var(--body); }
+.legend { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 10px; font-size: 14px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+
+/* principles */
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; margin-top: 40px; }
+.principle h3 { font: 600 20px/1.3 var(--body); margin-top: 14px; }
+.principle p { color: var(--muted); margin-top: 8px; font-size: 16px; }
+.principle .glyph { font: 500 15px/1 var(--mono); color: var(--accent); }
+@media (max-width: 860px) { .grid3 { grid-template-columns: 1fr; } }
+
+/* use cases */
+.cases { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 40px; }
+.case { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.case .who { font: 600 13px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.case q { font: 500 18px/1.45 var(--body); quotes: "„" "“"; }
+.case p { color: var(--muted); font-size: 15.5px; }
+.case code { color: var(--accent); }
+.case.wide { grid-column: 1 / -1; }
+@media (max-width: 760px) { .cases { grid-template-columns: 1fr; } }
+
+/* example */
+.chat { margin-top: 36px; display: flex; flex-direction: column; gap: 16px; max-width: 900px; }
+.bubble { align-self: flex-end; max-width: 620px; background: var(--ink); color: var(--paper); padding: 16px 20px; border-radius: 20px 20px 6px 20px; font-size: 17px; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.tool { font: 400 13.5px/1.2 var(--mono); color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; }
+.tool b { color: var(--accent); font-weight: 500; }
+.answer { background: var(--surface); border: 1px solid var(--line); border-radius: 20px 20px 20px 6px; padding: 24px 26px; display: flex; flex-direction: column; gap: 14px; }
+.answer h3 { font: 600 20px/1.4 var(--body); }
+.answer blockquote { margin: 0; border-left: 3px solid var(--accent); padding-left: 16px; }
+.answer blockquote cite { display: block; margin-top: 6px; font: 500 13.5px/1 var(--mono); font-style: normal; color: var(--accent); }
+.answer .row { display: flex; flex-wrap: wrap; gap: 8px; }
+.answer .note { color: var(--muted); font-size: 14px; }
+
+/* steps */
+.steps { list-style: none; padding: 0; margin: 40px 0 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; counter-reset: s; }
+.steps li { counter-increment: s; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.steps li::before { content: counter(s); font: 600 14px/1 var(--display); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.steps h3 { font: 600 18px/1.3 var(--body); }
+.steps p { color: var(--muted); font-size: 15px; }
+.steps li.here { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+@media (max-width: 900px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .steps { grid-template-columns: 1fr; } }
+
+/* install */
+.tabs { margin-top: 32px; max-width: 860px; }
+.tablist { display: flex; gap: 6px; flex-wrap: wrap; }
+.tablist button { font: 600 14.5px/1 var(--body); padding: 10px 14px; border-radius: 10px 10px 0 0; border: 1px solid transparent; border-bottom: none; background: none; color: var(--muted); cursor: pointer; }
+.tablist button[aria-selected="true"] { background: var(--surface); border-color: var(--line); color: var(--ink); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 0 var(--radius) var(--radius) var(--radius); padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; }
+.panel p { color: var(--muted); font-size: 15.5px; }
+pre { margin: 0; background: var(--code-bg); border-radius: 12px; padding: 16px 18px; overflow-x: auto; font: 400 13.5px/1.6 var(--mono); position: relative; }
+.pre-wrap { position: relative; }
+.pre-wrap .copy { position: absolute; top: 10px; right: 10px; }
+
+/* coverage */
+table { width: 100%; border-collapse: collapse; font-size: 15.5px; }
+th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 13px/1.2 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.table-wrap { overflow-x: auto; margin-top: 32px; }
+
+footer { border-top: 1px solid var(--line); padding-block: 40px 56px; color: var(--muted); font-size: 14.5px; }
+footer .cols { display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; }
+footer a { color: var(--muted); }
+.bg { margin-top: 28px; max-width: 72ch; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="#top" aria-label="LexBG home"><span class="sect">§</span><span>Lex<b>BG</b></span></a>
+    <ul>
+      <li><a href="#why">Why</a></li>
+      <li><a href="#use-cases">Use cases</a></li>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#install">Install</a></li>
+    </ul>
+    <a class="btn" href="https://github.com/StanK1/lexbg-mcp">GitHub</a>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <span class="eyebrow">Open-source MCP server</span>
+      <h1 style="margin-top:14px">Bulgarian law your AI can <em>quote and cite</em>.</h1>
+      <p class="lead">LexBG gives Claude and other AI assistants the exact text of Bulgarian legislation, every amendment since, and a plain warning when a text may not be current. It runs on your machine.</p>
+      <div class="install" role="group" aria-label="Install command">
+        <code id="cmd"><span>$</span> npx -y https://github.com/StanK1/lexbg-mcp/releases/latest/download/lexbg.tgz</code>
+        <button class="copy" type="button" data-copy="npx -y https://github.com/StanK1/lexbg-mcp/releases/latest/download/lexbg.tgz">Copy</button>
+      </div>
+      <div class="cta">
+        <a class="btn primary" href="#install">Set it up in a minute</a>
+        <a class="btn" href="https://github.com/StanK1/lexbg-mcp">View the code</a>
+      </div>
+    </div>
+    <article class="card" aria-label="Example provision">
+      <div class="cite">чл. 12, ал. 1 ЗСч <small>Закон за счетоводството</small></div>
+      <p class="quote">Счетоводната информация се съхранява … в следните срокове: 1. <mark>ведомости за заплати – 50 години</mark>, считано от 1 януари на отчетния период, следващ отчетния период, за който се отнасят;</p>
+      <div class="meta">
+        <span class="chip orig"><i></i>Original text · 25 later amendments not applied</span>
+        <span class="chip cons"><i></i>No later amendment mentions чл. 12</span>
+        <span class="src">ДВ, бр. 95 от 2015 г. · parliament.bg</span>
+      </div>
+    </article>
+  </div>
+
+  <section id="why" class="band">
+    <div class="wrap">
+      <span class="eyebrow">Why it exists</span>
+      <h2>A law in force is the act plus every change to it</h2>
+      <p class="lead">General AI answers Bulgarian legal questions from memory: plausible, often outdated, sometimes citing articles that don't exist. Checking it is hard because most amendments are not where you would look. They sit inside other laws: a paragraph in the VAT Act changes the Accounting Act, the budget law changes the tax code.</p>
+      <div class="stats">
+        <div class="stat"><b>2,064</b><span>acts adopted by the National Assembly, read weekly</span></div>
+        <div class="stat hl"><b>81 %</b><span>of 1,157 amendment links are inside other laws</span></div>
+        <div class="stat"><b>33</b><span>Bulgarian laws tracked, 18 compliance topics</span></div>
+        <div class="stat"><b>17</b><span>EU acts in Bulgarian: GDPR, DORA, AI Act, NIS2…</span></div>
+      </div>
+      <div class="chart" id="chart" role="img" aria-label="Timeline of the 25 changes to the Accounting Act since 2015: 22 made inside other laws, 3 by amending acts for the Accounting Act"></div>
+      <div class="legend"><span><i style="background:var(--amber)"></i>Inside another law (22)</span><span><i style="background:var(--accent)"></i>Amending act for the Accounting Act (3)</span><span style="display:block;flex-basis:100%">Changes to <b style="color:var(--ink);font-weight:600">Закон за счетоводството</b> since it was adopted in 2015. On a phone, scroll the timeline sideways.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <span class="eyebrow">What LexBG does differently</span>
+      <h2>Three rules every answer follows</h2>
+      <div class="grid3">
+        <div class="principle">
+          <span class="glyph">„…“ чл. 12, ал. 1</span>
+          <h3>Verbatim, never paraphrased</h3>
+          <p>Provisions come straight from the official text with a Bulgarian-style citation and a source link. A citation checker catches references that don't exist.</p>
+        </div>
+        <div class="principle">
+          <span class="chip orig" style="font-size:13px"><i></i>original</span>
+          <h3>Honest about what is current</h3>
+          <p>Every law is marked current (consolidated), original (as first adopted, later changes not applied) or missing, and that warning travels with every answer.</p>
+        </div>
+        <div class="principle">
+          <span class="glyph">what_changed(ЗСч, чл. 38)</span>
+          <h3>Changes come first</h3>
+          <p>For any law or single article: every amending act, including amendments buried in other laws, with the State Gazette issue and the amending text.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="use-cases" class="band">
+    <div class="wrap">
+      <span class="eyebrow">Use cases</span>
+      <h2>Who it helps</h2>
+      <div class="cases">
+        <div class="case">
+          <span class="who">Founder or freelancer</span>
+          <q>Имам ЕООД с двама служители и онлайн магазин. Какво трябва да спазвам?</q>
+          <p>A map of the areas that apply — accounting, VAT, employment, consumer law, the euro changeover — with the first provisions to read and the questions to ask an accountant.</p>
+        </div>
+        <div class="case">
+          <span class="who">Accountant</span>
+          <q>Какво се промени в Закона за счетоводството от 2024 г. насам?</q>
+          <p>Every amending act since that date, including changes made through the euro law and the budget law, with the exact amending paragraphs.</p>
+        </div>
+        <div class="case">
+          <span class="who">Compliance at a bank or fintech</span>
+          <q>Кой е действителен собственик по ЗМИП и коя директива стои зад него?</q>
+          <p>The legal definition in <code>§ 2 от ДР на ЗМИП</code>, the EU directive it implements, and DORA, AMLR and MiCA in Bulgarian.</p>
+        </div>
+        <div class="case">
+          <span class="who">Citizen</span>
+          <q>Мога ли да се откажа от потребителски кредит?</q>
+          <p>The right and the deadline from <code>чл. 29 ЗПК</code> — 14 days — quoted word for word, plus whether that text has changed since.</p>
+        </div>
+        <div class="case wide">
+          <span class="who">Developer building legal AI</span>
+          <q>Провери цитатите в този договор.</q>
+          <p>A citation checker and verbatim retrieval you can put under any model. Search quality is measured on real questions and the weekly build refuses to publish if it drops.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <span class="eyebrow">Example</span>
+      <h2>What an answer looks like</h2>
+      <div class="chat">
+        <div class="bubble">Колко години трябва да пазя ведомостите за заплати? Променял ли се е този текст?</div>
+        <div class="tools" aria-label="Tools Claude called">
+          <span class="tool"><b>search_law</b>("ведомости за заплати срок")</span>
+          <span class="tool"><b>get_provision</b>(ЗСч, чл. 12, ал. 1)</span>
+          <span class="tool"><b>what_changed</b>(ЗСч, article: 12)</span>
+        </div>
+        <div class="answer">
+          <h3>50 години — ведомостите за заплати се пазят 50 години от 1 януари на следващия отчетен период.</h3>
+          <blockquote>„Счетоводната информация се съхранява … в следните срокове: 1. ведомости за заплати – 50 години, считано от 1 януари на отчетния период, следващ отчетния период, за който се отнасят“<cite>чл. 12, ал. 1, т. 1 ЗСч</cite></blockquote>
+          <p>Счетоводните регистри и финансовите отчети се пазят 10 години (т. 2), а останалите носители — три години (т. 3).</p>
+          <div class="row"><span class="chip orig"><i></i>Original text (ДВ 95/2015) · 25 later amendments not applied</span><span class="chip cons"><i></i>No later amendment mentions чл. 12</span></div>
+          <p class="note">Research only, not legal advice — verify in Държавен вестник or with an accountant.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="band">
+    <div class="wrap">
+      <span class="eyebrow">How it works</span>
+      <h2>From the State Gazette to your assistant</h2>
+      <ol class="steps">
+        <li><h3>Official sources</h3><p>Every act the National Assembly adopts (parliament.bg) and EU acts in Bulgarian from the Publications Office.</p></li>
+        <li><h3>Weekly build</h3><p>Acts are parsed into articles and §, amendments are linked, tests and search checks run, then the database is published.</p></li>
+        <li class="here"><h3>On your machine</h3><p>A 6 MB SQLite database, downloaded once and updated in the background. Nothing you ask leaves your computer through LexBG.</p></li>
+        <li><h3>Your AI assistant</h3><p>Claude or any MCP client calls 10 read-only tools and answers with quotes, citations and warnings.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <span class="eyebrow">Install</span>
+      <h2>Set it up in a minute</h2>
+      <p class="lead">You need Node.js 22.13 or newer. Nothing to clone or build: the first start downloads the database (about ten seconds), later starts take a second.</p>
+      <div class="tabs">
+        <div class="tablist" role="tablist" aria-label="Choose your client">
+          <button role="tab" id="tab-desktop" aria-selected="true" aria-controls="panel-desktop" type="button">Claude Desktop</button>
+          <button role="tab" id="tab-code" aria-selected="false" aria-controls="panel-code" type="button">Claude Code</button>
+          <button role="tab" id="tab-docker" aria-selected="false" aria-controls="panel-docker" type="button">Docker</button>
+        </div>
+        <div class="panel" role="tabpanel" id="panel-desktop" aria-labelledby="tab-desktop">
+          <p>Settings → Developer → Edit Config, add this, then restart Claude Desktop and start a new chat.</p>
+          <div class="pre-wrap"><pre id="cfg">{
+  "mcpServers": {
+    "lexbg": {
+      "command": "npx",
+      "args": ["-y", "https://github.com/StanK1/lexbg-mcp/releases/latest/download/lexbg.tgz"]
+    }
+  }
+}</pre><button class="copy" type="button" data-copy-from="cfg">Copy</button></div>
+        </div>
+        <div class="panel" role="tabpanel" id="panel-code" aria-labelledby="tab-code" hidden>
+          <p>One command in your terminal.</p>
+          <div class="pre-wrap"><pre id="cc">claude mcp add lexbg -- npx -y https://github.com/StanK1/lexbg-mcp/releases/latest/download/lexbg.tgz</pre><button class="copy" type="button" data-copy-from="cc">Copy</button></div>
+        </div>
+        <div class="panel" role="tabpanel" id="panel-docker" aria-labelledby="tab-docker" hidden>
+          <p>For clients that run a command; the database is kept in a volume.</p>
+          <div class="pre-wrap"><pre id="dk">docker run -i --rm -v lexbg-data:/data ghcr.io/stank1/lexbg</pre><button class="copy" type="button" data-copy-from="dk">Copy</button></div>
+        </div>
+      </div>
+      <p class="lead" style="font-size:16px">Recommended: add the <a href="https://github.com/StanK1/lexbg-mcp/tree/main/skills/lexbg-research">lexbg-research</a> skill so Claude follows the full method. Every tool is described in the <a href="https://github.com/StanK1/lexbg-mcp/blob/main/docs/TOOLS.md">tool reference</a>.</p>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <span class="eyebrow">Coverage today</span>
+      <h2>What is in the database, and what is not yet</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Status</th><th>Laws</th><th>What you get</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip orig"><i></i>original</span></td><td>9 — ЗСч, ЗМИП, ЗНФО, ЗПК, ЗПУПС, ЗПФИ, ЗКС, ЗВЕРБ, the whistleblowing act</td><td>Text as adopted plus the full list of later amendments, flagged as possibly outdated</td></tr>
+            <tr><td><span class="chip miss"><i></i>missing</span></td><td>24 — including the Labour Code, the VAT Act, the Commercial Act, the tax laws</td><td>Amendment history only; search says so instead of guessing</td></tr>
+            <tr><td><span class="chip cons"><i></i>EU acts</span></td><td class="num">17</td><td>Full Bulgarian text as published in the Official Journal</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="lead" style="font-size:16px">Next on the roadmap: current consolidated texts for the core laws from official sources, hybrid search, and a hosted endpoint for trying LexBG without installing anything.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <span>LexBG · MIT license · built by Stanislav Krastev</span>
+      <span><a href="https://github.com/StanK1/lexbg-mcp">GitHub</a> · <a href="https://github.com/StanK1/lexbg-mcp/blob/main/docs/HOW_IT_WORKS.md">How it works</a> · <a href="https://github.com/StanK1/lexbg-mcp/blob/main/DATA_SOURCES.md">Data sources</a> · <a href="https://github.com/StanK1/lexbg-mcp/blob/main/DISCLAIMER.md">Disclaimer</a></span>
+    </div>
+    <p class="bg">LexBG is a research tool, not legal advice. Normative acts are not subject to copyright in Bulgaria (чл. 4, т. 1 ЗАПСП); EU texts © European Union, eur-lex.europa.eu.</p>
+    <p class="bg">На български: LexBG дава на AI асистентите дословния текст на българските закони, всички последващи изменения и ясно предупреждение, когато текстът може да не е актуален. Инструмент за проучване, а не правен съвет.</p>
+  </div>
+</footer>
+
+<script>
+// Amendment timeline: changes to the Accounting Act since its adoption (24 Nov 2015), from the weekly database.
+// [adoption date, 1 = amending act for the law / 0 = provision inside another law]
+const DATA = [["2016-09-08",0],["2016-11-15",0],["2016-11-23",0],["2017-10-11",0],["2017-11-02",0],["2017-11-22",0],["2018-02-01",0],["2018-02-28",0],["2018-11-22",0],["2019-01-30",0],["2019-04-24",0],["2019-11-21",0],["2020-03-11",0],["2020-12-03",0],["2020-12-03",0],["2023-12-07",1],["2024-08-07",0],["2024-08-14",1],["2025-02-19",1],["2025-03-21",0],["2025-07-18",0],["2025-12-17",0],["2026-02-26",0],["2026-03-05",0],["2026-07-09",0]];
+const NOTES = { "2016-11-15": ["Закон за независимия финансов одит", 0, "start"], "2017-11-22": ["ЗИД на ЗДДС", 2, "start"], "2024-08-07": ["Закон за въвеждане на еврото", 2, "end"], "2025-03-21": ["Държавен бюджет 2025", 1, "end"], "2025-07-18": ["ЗИД на Наказателния кодекс", 0, "end"] };
+
+function drawChart() {
+  const el = document.getElementById('chart');
+  const W = 1100, H = 330, x0 = 30, x1 = 1070, y = 210;
+  const t0 = Date.parse('2015-06-01'), t1 = Date.parse('2026-12-31');
+  const X = d => x0 + (Date.parse(d) - t0) / (t1 - t0) * (x1 - x0);
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const add = (tag, attrs, text) => { const n = document.createElementNS(ns, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text) n.textContent = text; svg.appendChild(n); return n; };
+  add('line', { x1: x0, x2: x1, y1: y, y2: y, stroke: 'var(--line)', 'stroke-width': 2 });
+  for (let yr = 2016; yr <= 2026; yr++) {
+    const x = X(`${yr}-01-01`);
+    add('line', { x1: x, x2: x, y1: y - 5, y2: y + 5, stroke: 'var(--muted)', 'stroke-width': 1.5 });
+    add('text', { x, y: y + 26, 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 13, 'font-family': 'JetBrains Mono, monospace' }, String(yr));
+  }
+  add('circle', { cx: X('2015-11-24'), cy: y, r: 8, fill: 'var(--ink)' });
+  add('text', { x: X('2015-11-24') - 8, y: y + 50, fill: 'var(--ink)', 'font-size': 13.5, 'font-weight': 600 }, 'Adopted · ДВ 95/2015');
+  const stack = {};
+  for (const [d, direct] of DATA) {
+    const k = `${direct}|${d.slice(0, 7)}`; stack[k] = (stack[k] || 0) + 1;
+    const cx = X(d), cy = direct ? y + 70 + (stack[k] - 1) * 22 : y - 38 - (stack[k] - 1) * 22;
+    const color = direct ? 'var(--accent)' : 'var(--amber)';
+    add('line', { x1: cx, x2: cx, y1: y, y2: cy, stroke: color, 'stroke-opacity': .45, 'stroke-width': 1.5 });
+    add('circle', { cx, cy, r: 7, fill: color }).appendChild(Object.assign(document.createElementNS(ns, 'title'), { textContent: `${d} · ${direct ? 'amending act for the Accounting Act' : 'inside another law'}` }));
+    const note = NOTES[d];
+    if (note && !direct && stack[k] === 1) {
+      const ly = y - 150 + note[1] * 30;
+      add('line', { x1: cx, x2: cx, y1: cy - 8, y2: ly + 6, stroke: 'var(--muted)', 'stroke-width': 1, 'stroke-dasharray': '2 3' });
+      add('text', { x: cx + (note[2] === 'start' ? -4 : 4), y: ly, 'text-anchor': note[2], fill: 'var(--ink)', 'font-size': 13.5 }, note[0]);
+    }
+  }
+  add('text', { x: X('2024-08-14'), y: y + 118, 'text-anchor': 'middle', fill: 'var(--accent)', 'font-size': 13.5 }, 'ЗИД на Закона за счетоводството');
+  el.appendChild(svg);
+}
+drawChart();
+
+// Copy buttons: clipboard API inside the click handler, falling back to selecting the text.
+document.querySelectorAll('.copy').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const src = btn.dataset.copyFrom ? document.getElementById(btn.dataset.copyFrom) : null;
+    const text = btn.dataset.copy || (src ? src.textContent : '');
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = 'Copied';
+    } catch {
+      const range = document.createRange();
+      range.selectNodeContents(src || document.getElementById('cmd'));
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      btn.textContent = 'Selected — press ⌘C';
+    }
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2200);
+  });
+});
+
+// Install tabs
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+tabs.forEach(tab => tab.addEventListener('click', () => {
+  tabs.forEach(t => {
+    const on = t === tab;
+    t.setAttribute('aria-selected', String(on));
+    document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+  });
+}));
+</script>
+</body>
+</html>

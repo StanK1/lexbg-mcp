@@ -16,7 +16,7 @@ You need **v22.13 or newer** (LexBG uses Node's built-in SQLite). If it is older
 
 ```bash
 git clone https://github.com/StanK1/lexbg-mcp.git
-cd LexBG
+cd lexbg-mcp
 npm install
 npm test          # optional: 42 tests on the bundled fixtures, ~3 seconds
 npm run build
@@ -72,7 +72,7 @@ Expected output ends with `LexBG is ready to use from your MCP client.`
      "mcpServers": {
        "lexbg": {
          "command": "node",
-         "args": ["/Users/you/LexBG/dist/src/index.js"]
+         "args": ["/Users/you/lexbg-mcp/dist/src/index.js"]
        }
      }
    }

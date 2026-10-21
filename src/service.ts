@@ -426,7 +426,13 @@ export class LexBG {
     if (law.kind !== 'bg') return { error: 'what_changed tracks Bulgarian laws (amendments published in the State Gazette).' };
 
     const limit = Math.min(Math.max(opts.limit ?? 20, 1), 100);
-    const since = opts.since ?? null;
+    // By default count only changes since the current law was adopted: older acts with the same
+    // title amended a predecessor law (e.g. the Accounting Act of 2001, replaced in 2015).
+    const since = opts.since ?? law.adopted ?? null;
+    const olderCount = !opts.since && law.adopted
+      ? (this.db.prepare(`SELECT COUNT(*) AS n FROM amendments m JOIN acts a ON a.act_id = m.act_id
+                           WHERE m.law_id = ? AND a.adopted < ?`).get(lawId, law.adopted) as { n: number }).n
+      : 0;
     const until = opts.until ?? null;
     const acts = this.db.prepare(`SELECT a.act_id, a.title, a.adopted, a.state_gazette, a.url, m.mode, m.section_ords
                                     FROM amendments m JOIN acts a ON a.act_id = m.act_id
@@ -462,6 +468,9 @@ export class LexBG {
       law: this.lawSummary(law),
       filter: { since, until, article: opts.article ?? null },
       total_amending_acts: acts.length,
+      earlier_acts_excluded: olderCount
+        ? `${olderCount} earlier act(s) amended a previous law with the same title (before ${law.adopted}). Pass since: "2000-01-01" to include them.`
+        : undefined,
       changes: items,
       note: 'Dates are adoption dates by the National Assembly; publication (ДВ) follows within days and entry into force may differ (see each act\'s final provisions). Amendments are detected from parliament.bg act titles and from "В Закона за ..." clauses inside other acts.',
       disclaimer: DISCLAIMER,

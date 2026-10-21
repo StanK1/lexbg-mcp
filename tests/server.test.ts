@@ -144,6 +144,15 @@ describe('MCP server', () => {
     expect(euro.sections).toEqual(['§ 43 ПЗР']);
   });
 
+  it('what_changed leaves out acts that amended a predecessor law with the same title', async () => {
+    const { data } = await call('what_changed', { law: 'ЗСч', include_text: false });
+    // the 2013 "Закон за допълнение на Закона за счетоводството" amended the Accounting Act of 2001
+    expect(data.changes.map((c: { adopted: string }) => c.adopted).every((d: string) => d >= '2015-11-24')).toBe(true);
+    expect(data.earlier_acts_excluded).toMatch(/^1 earlier act/);
+    const all = (await call('what_changed', { law: 'ЗСч', since: '2000-01-01', include_text: false })).data;
+    expect(all.total_amending_acts).toBe(data.total_amending_acts + 1);
+  });
+
   it('what_changed filters by article', async () => {
     const { data } = await call('what_changed', { law: 'ЗСч', article: 'чл. 19' });
     const byAct = Object.fromEntries(data.changes.map((c: { act: string; sections: Array<{ section: string; text: string }> }) => [c.act, c.sections]));

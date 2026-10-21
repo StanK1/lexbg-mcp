@@ -1,6 +1,6 @@
 {
   "name": "lexbg",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "LexBG — open-source MCP server for Bulgarian legal & compliance research: laws, amendments, EU links and compliance topic packs. Runs fully locally on SQLite.",
   "type": "module",
   "license": "MIT",

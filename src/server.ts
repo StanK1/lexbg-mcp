@@ -7,7 +7,7 @@ import {
   SERVER_INSTRUCTIONS, checkCitationsPrompt, complianceReviewPrompt, researchPrompt, whatsNewPrompt,
 } from './workflow.js';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 
 const readOnly = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } as const;
 

@@ -1,55 +1,73 @@
-# LexBG
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.png">
+    <img src="docs/assets/hero.png" alt="LexBG — Bulgarian law for AI assistants: verbatim, cited, and honest about what is current" width="100%">
+  </picture>
+</p>
 
-**An open-source MCP server that gives AI assistants reliable, citable access to Bulgarian legislation, its amendment history and the compliance requirements that follow from it.**
+<p align="center">
+  <a href="https://github.com/StanK1/lexbg-mcp/actions/workflows/ci.yml"><img src="https://github.com/StanK1/lexbg-mcp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/StanK1/lexbg-mcp/actions/workflows/data.yml"><img src="https://github.com/StanK1/lexbg-mcp/actions/workflows/data.yml/badge.svg" alt="Weekly data build"></a>
+  <a href="https://github.com/StanK1/lexbg-mcp/releases/latest"><img src="https://img.shields.io/github/v/release/StanK1/lexbg-mcp?label=release&color=0E7A5A" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/MCP-server-16202B" alt="MCP server">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license">
+</p>
 
-LexBG runs entirely on your machine: one SQLite file, no cloud services, no API key needed. Point Claude (or any MCP client) at it and ask in Bulgarian or English — answers come back as verbatim provisions with citations, plus an honest warning about whether the text is current.
+<p align="center">
+  <a href="https://stank1.github.io/lexbg-mcp/"><b>Website</b></a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#what-you-can-ask">Use cases</a> ·
+  <a href="docs/TOOLS.md">Tool reference</a> ·
+  <a href="docs/HOW_IT_WORKS.md">How it works</a> ·
+  <a href="#на-български">На български</a>
+</p>
 
-[![CI](https://github.com/StanK1/lexbg-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/StanK1/lexbg-mcp/actions/workflows/ci.yml)
-![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
-![Node 22.13+](https://img.shields.io/badge/node-%E2%89%A522.13-green.svg)
+**LexBG** is an open-source [Model Context Protocol](https://modelcontextprotocol.io) server that gives Claude and other AI assistants reliable access to Bulgarian legislation. Answers quote the law word for word, cite it the Bulgarian way (`чл. 12, ал. 1 ЗСч`), show what changed since, and say plainly when a text may not be current.
 
-> LexBG is a research tool, not legal advice. See [DISCLAIMER.md](DISCLAIMER.md).
+It runs on your machine. One line in Claude Desktop installs it; a 6 MB database, rebuilt every week from parliament.bg and EUR-Lex, downloads on first start.
 
----
+> [!NOTE]
+> LexBG is a research tool, not legal advice. Verify important answers in the State Gazette (Държавен вестник) or with a professional. See [DISCLAIMER.md](DISCLAIMER.md).
 
-## Why another legal MCP?
+## Why LexBG
 
-A Bulgarian law in force is rarely a single document. It is the original act **plus a chain of amendments** published in the State Gazette — and many of those amendments are hidden inside *other* laws ("§ 43. В Закона за счетоводството ... се правят следните изменения"). In the catalogue of acts the National Assembly publishes on parliament.bg, roughly **6 out of 10 acts are amending acts**.
+Ask a general-purpose AI about Bulgarian law and it answers from memory: plausible, often outdated, sometimes citing articles that don't exist. The underlying problem is that **a Bulgarian law in force is not one document.** It is the act as adopted plus every later amendment, and most amendments are not where you would look for them.
 
-Most tools index whatever text they can find and label it "in force". LexBG is built around the opposite principle: **never present stale text as current.**
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/amendments-dark.png">
+  <img src="docs/assets/amendments.png" alt="Timeline: 22 of 25 changes to the Accounting Act since 2015 were made inside other laws; only 3 were amending acts titled for the Accounting Act" width="100%">
+</picture>
 
-| | What LexBG does |
+Across the 33 laws LexBG tracks, **935 of 1,157 amendments (81 %) were made inside other laws**: a paragraph in the VAT Act changes the Accounting Act, the budget law changes the tax code, the euro law changes sixteen laws at once. LexBG reads every act the National Assembly adopts and links those hidden changes to the law they modify.
+
+Three principles follow from that:
+
+| | |
 |---|---|
-| **Amendment tracking** | Links every promulgated act to the laws it changes — both direct amending acts *and* amendments buried in the transitional provisions of other laws. In the 6 test acts alone it finds 32 such links (the euro-adoption law quietly amends 16 tracked laws). |
-| **Honest text status** | Every law is `consolidated` (current text imported from an official source), `original` (as first promulgated — later changes not applied) or `missing`. Every answer carries that warning. |
-| **Structure-aware parsing** | Articles (чл.), and the § of the Additional / Transitional / Final provisions as separate units — so definitions like "§ 1. По смисъла на този закон…" are findable instead of being glued onto the last article. |
-| **Citation checks** | `validate_citation` confirms that "чл. 12, ал. 1 ЗСч" exists and returns its exact text — a guard against hallucinated citations. |
-| **EU ↔ BG links** | Detects references such as "Директива (ЕС) 2015/849" and maps them to CELEX numbers, both ways. |
-| **Compliance layer** | 18 topic packs (company formation, accounting, VAT, employment, AML, GDPR, consumers, euro changeover, citizens' rights…) and a `compliance_checklist` that maps a business profile to the law areas and provisions to read first. |
-| **Measured quality** | A retrieval eval with verified ground truth runs in CI (current baseline: hit@5 = 79 %, MRR = 0.70). |
+| **Verbatim, never paraphrased** | Every provision comes from the official text, with its citation and source link. `validate_citation` catches references that don't exist. |
+| **Honest about currency** | Each law is marked `consolidated` (current text), `original` (as first adopted; later amendments not applied) or `missing` (amendment history only). That status and a plain-language warning travel with every answer. |
+| **Changes are first-class** | `what_changed` lists every amending act for a law or a single article, including amendments buried in other laws, with State Gazette references. |
 
-## Tools
+## What you can ask
 
-| Tool | What it answers |
-|---|---|
-| `about` | What is in the local database, how fresh it is, which topics exist |
-| `list_laws` | Tracked laws and EU acts, text status, amendment counts |
-| `search_law` | Full-text search (Bulgarian) with snippets and citations, filtered by law or topic |
-| `get_provision` | Verbatim article / § / алинея / точка, EU references, later amendments that mention it |
-| `validate_citation` | Does this citation exist? What does it say? |
-| `what_changed` | Amendment history of a law, by date and by article |
-| `eu_links` | Which EU acts a law refers to — or which Bulgarian provisions refer to an EU act |
-| `get_topic` | A compliance topic: laws, typical questions, key provisions |
-| `compliance_checklist` | Profile in (ЕООД, employees, sells online…) → applicable topics, reasons, provisions to read |
-| `get_obligations` | Structured obligations (who / must / deadline) with verified verbatim quotes — optional AI layer |
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/example-dark.png">
+  <img src="docs/assets/example.png" alt="Example: asked how long payroll records must be kept, Claude calls search_law, get_provision and what_changed, quotes чл. 12, ал. 1, т. 1 ЗСч (50 years) and shows that the text is the original version and that no amendment mentions чл. 12" width="100%">
+</picture>
 
-**Prompts** (slash commands in clients that support them): `legal_research`, `compliance_review`, `whats_new`, `check_citations`.
+| Who | Typical question | What LexBG brings |
+|---|---|---|
+| **Founder or freelancer** | *„Имам ЕООД с двама служители и онлайн магазин. Какво трябва да спазвам?“* | `compliance_checklist` maps the business to the areas that apply (accounting, VAT, employment, consumer law, euro changeover…) with the first provisions to read |
+| **Accountant** | *„Какво се промени в Закона за счетоводството от 2024 г. насам?“* | Every amending act since that date, including changes hidden in the euro law and the budget law, with the amending text |
+| **Compliance team at a bank or fintech** | *„Кой е действителен собственик по ЗМИП и коя директива стои зад него?“* | The legal definition (`§ 2 от ДР на ЗМИП`), the EU directive it implements, and DORA / AMLR / MiCA texts in Bulgarian |
+| **Developer building legal AI** | *„Провери цитатите в този договор.“* | A citation checker and verbatim retrieval you can put under any model, with a measured search quality |
+| **Citizen** | *„Мога ли да се откажа от потребителски кредит?“* | The exact right and deadline (`чл. 29 ЗПК` — 14 days), quoted, plus whether the text has changed |
 
-## Quick start (1 minute)
+## Quick start
 
-**You need:** Node.js **22.13 or newer** (`node --version`). Nothing to clone or build.
+You need **Node.js 22.13 or newer** (`node --version`). Nothing to clone or build.
 
-**Claude Desktop** — Settings → Developer → Edit Config, add:
+**Claude Desktop** · Settings → Developer → Edit Config:
 
 ```json
 {
@@ -62,7 +80,10 @@ Most tools index whatever text they can find and label it "in force". LexBG is b
 }
 ```
 
-Restart Claude Desktop; the LexBG tools and prompts appear in the tools menu.
+Restart Claude Desktop and start a new chat. LexBG appears in the tools menu.
+
+<details>
+<summary><b>Claude Code, Docker and other clients</b></summary>
 
 **Claude Code**
 
@@ -70,15 +91,13 @@ Restart Claude Desktop; the LexBG tools and prompts appear in the tools menu.
 claude mcp add lexbg -- npx -y https://github.com/StanK1/lexbg-mcp/releases/latest/download/lexbg.tgz
 ```
 
-**Docker** (any MCP client that can run a command)
+**Docker**
 
 ```bash
 docker run -i --rm -v lexbg-data:/data ghcr.io/stank1/lexbg
 ```
 
-On first start LexBG downloads the ready-made database (rebuilt every week from parliament.bg and EUR-Lex, checksum-verified) to `~/.lexbg/`. After that it starts instantly, works offline, and checks once a day for the next weekly build. Tool calls made during the first download simply wait for it.
-
-**Recommended:** install the Claude skill [`skills/lexbg-research`](skills/lexbg-research/SKILL.md) (`lexbg-research-skill.zip` in the [latest release](https://github.com/StanK1/lexbg-mcp/releases/latest)) so Claude follows the full research method. [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) explains what the model sees and how it decides which tool to call.
+**Any MCP client** — run the `npx` command above as a stdio server.
 
 | Setting | Default | Purpose |
 |---|---|---|
@@ -86,114 +105,126 @@ On first start LexBG downloads the ready-made database (rebuilt every week from 
 | `LEXBG_HOME` | `~/.lexbg` | Where the downloaded database lives |
 | `LEXBG_OFFLINE=1` | off | Never use the network (needs a cached or local database) |
 
-### Build the data yourself (contributors)
+</details>
 
-```bash
-git clone https://github.com/StanK1/lexbg-mcp.git && cd LexBG
-npm install && npm run build
-npm run fetch:parliament        # all acts (~45 min the first time; resumable)
-npm run fetch:eurlex            # EU acts via the Publications Office API
-npm run build:db && npm run coverage && npm run smoke
-```
+On first start LexBG downloads the weekly database (about 6 MB, checksum-verified) to `~/.lexbg/`. A new user is ready in about ten seconds; later starts take about one second and work offline. Once a day it checks for a newer weekly build in the background.
 
-A database you build in the repository (`data/lexbg.db`) takes priority over the downloaded one. Step-by-step guide with troubleshooting: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md).
+**Recommended:** add the Claude skill [`lexbg-research`](skills/lexbg-research/SKILL.md) (`lexbg-research-skill.zip` in the [latest release](https://github.com/StanK1/lexbg-mcp/releases/latest)). It teaches Claude the full method: search, quote, check amendments, validate citations.
 
-### Try it
+## Tools and prompts
 
-- *"Колко години трябва да пазя ведомостите за заплати? Цитирай закона."*
-- *"Какво се промени в Закона за счетоводството от 2024 г. насам?"*
-- *"Имам ЕООД с двама служители и онлайн магазин. Какви закони трябва да спазвам?"*
-- *"Кой е действителен собственик по ЗМИП и коя европейска директива стои зад закона?"*
-- *"Провери дали съществува чл. 38, ал. 1 от Закона за счетоводството."*
+| Tool | What it answers |
+|---|---|
+| `search_law` | Full-text search in Bulgarian, ranked, with snippets, citations and a note when the relevant law has no text yet |
+| `get_provision` | Verbatim article, § of the additional/transitional provisions, алинея or точка, plus EU references and later amendments that mention it |
+| `what_changed` | Amendment history of a law, by date and by article, including amendments inside other laws |
+| `validate_citation` | Does `чл. 6, ал. 1 ЗЗЛД` exist, and what does it say? |
+| `compliance_checklist` | Business profile in, applicable compliance areas out, with reasons and provisions to read |
+| `get_topic` | One of 18 compliance topics: laws, typical questions, key provisions |
+| `eu_links` | EU acts a law refers to, or Bulgarian provisions that refer to an EU act |
+| `list_laws` · `about` | What is covered, how current it is, where it came from |
+| `get_obligations` | Structured obligations (who / must / by when) with verified quotes — optional AI layer |
 
-## Getting current (consolidated) texts
-
-parliament.bg publishes each act **as promulgated**. That gives LexBG the original text of laws adopted since about 2005 and the full amendment trail — but not the consolidated current wording, and nothing for older laws such as the Labour Code (1986) or the Commercial Act (1991).
-
-To add the current text of a law, save it from an **official** state source as `data/manual/<law-id>.html` (or `.txt`) with a small `<law-id>.yml` describing where it came from, then run `npm run build:db`. LexBG marks it `consolidated` and still warns about any amendment promulgated after that date. Step-by-step instructions, and the sources you must **not** use, are in [DATA_SOURCES.md](DATA_SOURCES.md).
-
-## Evaluation
-
-```bash
-npm run eval                                   # evals/retrieval.yml against your database
-npm run eval -- --file evals/fixtures.yml --db <db>   # the CI eval on the test fixtures
-```
-
-Each case is a natural question plus the provision that answers it, verified by reading the law — not by looking at search results. The runner reports hit@1/3/5 and MRR and writes `data/eval-report.json`. Current baseline on the fixtures with keyword search only:
-
-| hit@1 | hit@3 | hit@5 | MRR |
-|---:|---:|---:|---:|
-| 64 % | 71 % | 79 % | 0.70 |
-
-The misses are instructive: short definitional articles ("Чл. 3. Мерките … са: …") lose to longer articles that repeat the query words. That is exactly what hybrid (semantic + keyword) search should fix — see the roadmap.
-
-## Optional: obligation extraction (AI layer)
-
-```bash
-ANTHROPIC_API_KEY=... npm run extract:obligations -- --law zsch --limit 5
-```
-
-An LLM reads each provision and proposes obligations (*who* must do *what*, *by when*). LexBG keeps an item **only if its quote appears verbatim in the provision**, writes them to `data/obligations/<law>.json` as `unreviewed`, and serves them through `get_obligations` after `npm run build:db`. Mark items `approved` or `rejected` after a human review. The model is configurable with `LEXBG_MODEL`.
+Four **prompts** package the method as one-click workflows: `legal_research`, `compliance_review`, `whats_new`, `check_citations`. Full parameters and example output: [docs/TOOLS.md](docs/TOOLS.md).
 
 ## How it works
 
-```mermaid
-flowchart LR
-  P[parliament.bg API<br/>promulgated acts] --> F1[fetch:parliament]
-  E[EUR-Lex<br/>EU acts in BG] --> F2[fetch:eurlex]
-  M[data/manual<br/>official consolidated texts] --> B
-  F1 --> R[(data/raw)]
-  F2 --> R
-  R --> B[build:db<br/>parse · link amendments · EU refs]
-  Y[sources/*.yml<br/>laws · EU acts · topics] --> B
-  B --> D[(data/lexbg.db<br/>SQLite + FTS5)]
-  D --> W[weekly GitHub Action<br/>publishes lexbg.db.gz]
-  W --> S[LexBG MCP server<br/>stdio · downloads on first start]
-  S --> C[Claude / any MCP client]
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/how-it-works-dark.png">
+  <img src="docs/assets/how-it-works.png" alt="Official sources (parliament.bg, EUR-Lex) → weekly build on GitHub Actions → lexbg.db on your machine → Claude and any MCP client" width="100%">
+</picture>
+
+- **Sources.** Every act the National Assembly has adopted since about 2005 (parliament.bg), and 17 EU acts in Bulgarian from the Publications Office (GDPR, DORA, the AI Act, NIS2, AMLR, MiCA, PSD2, the VAT Directive and others).
+- **Weekly build.** A GitHub Action fetches new acts, parses them into articles and §, links amendments, runs 57 tests and the search evaluation, and publishes the database. If search quality drops, nothing is published.
+- **On your machine.** One SQLite file with full-text search. LexBG does not run a model and sends nothing anywhere; your AI client decides when to call it.
+
+More detail, including exactly what the AI sees: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md).
+
+## Coverage today
+
+| | |
+|---|---|
+| Promulgated acts in the catalogue | 2,064 (2005 → present), rebuilt weekly |
+| Amendment links found | 1,157 (81 % inside other laws) |
+| Bulgarian laws tracked | 33 — 9 with original text, 24 with amendment history only |
+| EU acts with full Bulgarian text | 17 |
+| Compliance topics | 18 |
+
+parliament.bg publishes each act **as adopted**, so for laws adopted since 2005 LexBG has the original text plus the full amendment trail, and for older laws (the Labour Code, the Commercial Act, the VAT Act) only the amendment trail. Current consolidated texts can be added from official sources; see [DATA_SOURCES.md](DATA_SOURCES.md). LexBG never presents an original text as current.
+
+## Search quality
+
+Search is measured on 32 real questions with answers verified by reading the law ([evals/retrieval.yml](evals/retrieval.yml)), and the weekly build fails if quality drops.
+
+| | correct provision first | in top 3 | in top 5 | MRR |
+|---|---:|---:|---:|---:|
+| v0.2 keyword search | 56 % | 72 % | 78 % | 0.65 |
+| **v0.3 relaxed matching + reranking** | **72 %** | **88 %** | **88 %** | **0.80** |
+
+## Build the data yourself
+
+```bash
+git clone https://github.com/StanK1/lexbg-mcp.git && cd lexbg-mcp
+npm install && npm run build
+npm run fetch:parliament        # all acts (~45 min the first time; resumable)
+npm run fetch:eurlex            # EU acts via the Publications Office API
+npm run build:db && npm run coverage && npm test
 ```
 
+A database built in the repository (`data/lexbg.db`) takes priority over the downloaded one. Step-by-step guide: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md).
+
+<details>
+<summary><b>Project layout</b></summary>
+
 ```
-sources/          laws.yml · eu.yml · topics.yml — the registry (edit these to add laws or topics)
-src/              MCP server, query layer, parsers (Bulgarian acts, EU acts, citations, EU refs)
-scripts/          fetchers, database builder, coverage, eval, obligation extraction
-fixtures/         real public-domain acts from parliament.bg used by the tests
-evals/            retrieval eval sets
-tests/            unit + end-to-end tests (real MCP client against an in-memory server)
+sources/      laws.yml · eu.yml · topics.yml — the registry (add laws and topics here)
+src/          MCP server, query layer, parsers for Bulgarian and EU acts, citations, amendments
+scripts/      fetchers, database builder, coverage, evaluation, obligation extraction
+fixtures/     real public-domain acts used by the tests
+evals/        search evaluation sets with verified answers
+tests/        unit and end-to-end tests (a real MCP client against the server)
+docs/         guides, tool reference, images
+site/         the project website (GitHub Pages)
 ```
 
-Built with the official TypeScript MCP SDK and Node's built-in `node:sqlite` (FTS5) — no native dependencies to compile.
+Built with the official TypeScript MCP SDK and Node's built-in SQLite. No native dependencies.
+
+</details>
 
 ## Roadmap
 
-- [ ] Hybrid search: multilingual embeddings next to FTS5, measured with the eval
-- [ ] Court decisions from the central court-acts portal (anonymised acts, published under the Judiciary Act)
-- [ ] Regulator guidance: data-protection authority (КЗЛД) decisions and opinions, tax authority guidance
-- [ ] Remote deployment (Streamable HTTP) and support for the 2026-07-28 MCP specification once the SDK ships it
-- [ ] Hallucination benchmark: answers *with* vs *without* LexBG on 100 Bulgarian compliance questions
-- [ ] More consolidated texts contributed from official sources
+- [ ] Current consolidated texts for the core laws (Labour Code, VAT, corporate and personal income tax, social security, Commercial Act) from official sources
+- [ ] Hybrid search (embeddings next to full-text search), measured with the evaluation
+- [ ] Hosted endpoint for trying LexBG without installing anything
+- [ ] Court decisions and regulator guidance (data protection authority, tax authority)
+- [ ] Benchmark: answers with and without LexBG on 100 Bulgarian compliance questions
 
-## Acknowledgements
+## Contributing
 
-The parliament.bg endpoints used here were first documented by Ansvar Systems' open-source [Bulgarian Law MCP](https://github.com/Ansvar-Systems/Bulgarian-law-mcp) (Apache-2.0), which served as a reference. LexBG is an independent implementation with a different design: amendment tracking, explicit text status, structure-aware parsing and a compliance layer.
+Issues and pull requests are welcome — new laws for the registry, parser fixes, evaluation questions, consolidated texts from official sources. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Legal
+## Acknowledgements and legal
 
-- Normative acts, acts of state bodies and court acts are **not subject to copyright** in Bulgaria (чл. 4, т. 1 от Закона за авторското право и сродните му права). EUR-Lex content may be reused free of charge.
-- LexBG does not scrape commercial legal databases. Their consolidated texts are their product.
-- Not legal advice — see [DISCLAIMER.md](DISCLAIMER.md).
-
-Code licensed under the [MIT License](LICENSE).
+- Normative acts and acts of state bodies are not subject to copyright in Bulgaria (чл. 4, т. 1 ЗАПСП). EU texts © European Union, [eur-lex.europa.eu](https://eur-lex.europa.eu), reused under the EUR-Lex legal notice. LexBG does not use commercial legal databases.
+- The parliament.bg endpoints were first documented by Ansvar Systems' open-source [Bulgarian Law MCP](https://github.com/Ansvar-Systems/Bulgarian-law-mcp), which served as a reference. LexBG is an independent implementation.
+- Code: [MIT License](LICENSE). Changes: [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
 ## На български
 
-**LexBG** е MCP сървър с отворен код, който дава на AI асистенти достъп до българското законодателство с точни цитати, история на измененията и карта на задълженията по теми (регистрация на фирма, счетоводство, ДДС, трудово право, ЗМИП, лични данни, потребители, еврото и др.).
+**LexBG** е MCP сървър с отворен код, който дава на Claude и други AI асистенти надежден достъп до българското законодателство. Отговорите цитират закона дословно (`чл. 12, ал. 1 ЗСч`), показват какво се е променило след това и казват ясно, когато текстът може да не е актуален.
 
-Инсталация за една минута — добавете в Claude Desktop (Settings → Developer → Edit Config):
+**Защо:** действащият закон не е един документ, а първоначалният текст плюс всички изменения — а 81 % от измененията на следените закони са направени в *други* закони (например чрез закона за еврото или закона за бюджета). LexBG чете всеки приет от Народното събрание акт и свързва тези скрити промени със закона, който променят.
+
+**Инсталация за една минута** — Claude Desktop → Settings → Developer → Edit Config:
 
 ```json
 { "mcpServers": { "lexbg": { "command": "npx", "args": ["-y", "https://github.com/StanK1/lexbg-mcp/releases/latest/download/lexbg.tgz"] } } }
 ```
 
-При първо стартиране LexBG изтегля готовата база данни (обновява се всяка седмица от parliament.bg и EUR-Lex) и след това стартира веднага и работи офлайн. Всеки отговор съдържа предупреждение дали текстът е актуален (консолидиран), оригинален (без последващите изменения) или липсва. LexBG е инструмент за проучване, а не правен съвет.
+При първо стартиране се изтегля готовата база данни (около 6 MB, обновява се всяка седмица от parliament.bg и EUR-Lex). След това LexBG стартира за секунда и работи офлайн.
+
+**Примери:** *„Колко години се пазят ведомостите за заплати?“* · *„Какво се промени в ЗДДС от 2025 г.?“* · *„Имам ЕООД с онлайн магазин — какво трябва да спазвам?“* · *„Провери цитатите в този договор.“*
+
+LexBG е инструмент за проучване, а не правен съвет. Проверявайте важните отговори в Държавен вестник или с адвокат или счетоводител.
