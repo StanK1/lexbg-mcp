@@ -57,6 +57,8 @@ jobs:
           npm test
           node dist/scripts/smoke.js
           node dist/scripts/coverage.js
+          # search quality on the real data must not regress (baseline v0.3: hit@5 88%, MRR 0.80)
+          node dist/scripts/eval.js --min-hit5 0.82
 
       - name: Package
         run: node dist/scripts/release-data.js

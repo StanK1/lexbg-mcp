@@ -3,7 +3,7 @@
  * requests, retries with backoff, and never hammers a server.
  */
 
-export const USER_AGENT = 'LexBG/0.1 (+https://github.com/StanK1/LexBG; open-source legal research MCP)';
+export const USER_AGENT = 'LexBG/0.1 (+https://github.com/StanK1/lexbg-mcp; open-source legal research MCP)';
 
 export interface PoliteFetcherOptions {
   minDelayMs?: number;

@@ -2,7 +2,7 @@
 /**
  * LexBG MCP server (stdio).
  *
- *   npx -y https://github.com/StanK1/LexBG/releases/latest/download/lexbg.tgz
+ *   npx -y https://github.com/StanK1/lexbg-mcp/releases/latest/download/lexbg.tgz
  *   node /path/to/LexBG/dist/src/index.js
  *
  * The server answers the MCP handshake immediately. On first run it downloads the weekly

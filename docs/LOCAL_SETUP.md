@@ -15,7 +15,7 @@ You need **v22.13 or newer** (LexBG uses Node's built-in SQLite). If it is older
 ## 2. Get the code and build it
 
 ```bash
-git clone https://github.com/StanK1/LexBG.git
+git clone https://github.com/StanK1/lexbg-mcp.git
 cd LexBG
 npm install
 npm test          # optional: 42 tests on the bundled fixtures, ~3 seconds

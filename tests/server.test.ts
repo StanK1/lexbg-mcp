@@ -95,6 +95,20 @@ describe('MCP server', () => {
     expect(data.results[0].provision).toBe('§ 2 ДР');
   });
 
+  it('search_law says when the relevant law has no text, instead of silently answering from other laws', async () => {
+    const { data } = await call('search_law', { query: 'Кога е задължителна регистрацията по ДДС?' });
+    expect(data.coverage_note).toMatch(/Закон за данък върху добавената стойност \(ЗДДС\)/);
+    const ok = (await call('search_law', { query: 'действителен собственик' })).data;
+    expect(ok.coverage_note).toBeUndefined();
+    expect(ok.results[0].citation).toBe('§ 2 от ДР на ЗМИП');
+  });
+
+  it('search_law uses a law named in the question as a filter, not as a search word', async () => {
+    const { data } = await call('search_law', { query: 'видни политически личности по ЗМИП' });
+    expect(data.terms).not.toContain('змип');
+    expect(data.results[0].law).toBe('ЗМИП');
+  });
+
   it('get_provision returns verbatim text and the requested алинея', async () => {
     const { data } = await call('get_provision', { law: 'ЗСч', provision: 'чл. 12', paragraph: '1' });
     expect(data.found).toBe(true);
@@ -204,8 +218,9 @@ describe('retrieval eval (fixtures)', () => {
     const { runEval } = await import('../scripts/eval.js');
     const cases = YAML.parse(fs.readFileSync(path.join(ROOT, 'evals', 'fixtures.yml'), 'utf8')).cases;
     const r = runEval(lexForEval, cases);
-    // Baseline (keyword search only): hit@5 = 0.79, MRR = 0.70. Raise these when search improves.
+    // v0.1 keyword search: hit@5 0.79, MRR 0.70 → v0.3 relaxed matching + reranking: hit@5 0.79, MRR 0.74.
+    // Raise these when search improves; never lower them to make a change pass.
     expect(r.hit5).toBeGreaterThanOrEqual(0.78);
-    expect(r.mrr).toBeGreaterThanOrEqual(0.69);
+    expect(r.mrr).toBeGreaterThanOrEqual(0.73);
   });
 });

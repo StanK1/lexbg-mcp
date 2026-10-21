@@ -8,7 +8,7 @@ LexBG only uses **official, freely reusable** sources and downloads them **to yo
 | **EUR-Lex** (Publications Office of the EU) | Bulgarian text of the EU acts in `sources/eu.yml` | `npm run fetch:eurlex` — `legal-content/BG/TXT/HTML/?uri=CELEX:…` | EUR-Lex content may be reused free of charge (EUR-Lex legal notice) |
 | **Official consolidated texts** you add | Current wording of a law | Save into `data/manual/` (see below) | Must come from a state body — not from a commercial database |
 
-Both fetchers identify themselves (`User-Agent: LexBG/0.1 (+https://github.com/StanK1/LexBG)`), wait between requests (1.2 s for parliament.bg, 2 s for EUR-Lex) and resume where they stopped. Please keep it that way.
+Both fetchers identify themselves (`User-Agent: LexBG/0.1 (+https://github.com/StanK1/lexbg-mcp)`), wait between requests (1.2 s for parliament.bg, 2 s for EUR-Lex) and resume where they stopped. Please keep it that way.
 
 ## What the text status means
 

@@ -7,7 +7,8 @@ import { getMeta } from './db.js';
 import {
   resolveEu, resolveLaw, resolveTopic, type Condition, type Registry, type TopicEntry,
 } from './registry.js';
-import { buildFtsQueries } from './text/fts.js';
+import { allOf, anyOf, buildTermGroups, combinations, coverage, stem, tokenize, type TermGroup } from './text/fts.js';
+import { mentionsProvision, withoutOwnNumber } from './text/mentions.js';
 import { formatCitation, parseCitation } from './text/citation.js';
 import { extractParagraph, extractPoint, type PartCode, type ProvisionKind } from './text/parse-bg.js';
 import { getCoverage, textWarning, type LawCoverage } from './coverage.js';
@@ -132,10 +133,53 @@ export class LexBG {
 
   // ------------------------------------------------------------------ search
 
+  /** Laws named in a question: abbreviations (ЗДДС, GDPR), titles, or common names (ДДС, лични данни). */
+  mentionedLaws(query: string): string[] {
+    const q = ` ${query.toLowerCase().replace(/[„“"«»(),.?!:;]/g, ' ').replace(/\s+/g, ' ')} `;
+    const found: string[] = [];
+    const has = (name: string) => {
+      const n = name.toLowerCase().trim();
+      return n.length >= 3 && new RegExp(`(?<![\\p{L}\\p{N}])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`, 'u').test(q);
+    };
+    for (const l of this.reg.laws) {
+      if ([l.short, l.title, l.genitive, ...(l.base_titles ?? []), ...(l.genitives ?? []), ...(l.aliases ?? [])].some(has)) found.push(l.id);
+    }
+    for (const e of this.reg.eu) {
+      if ([e.short, ...(e.aliases ?? [])].some(has)) found.push(e.celex);
+    }
+    return found;
+  }
+
+  /**
+   * Tracked laws that a question is probably about but that have no text in the database:
+   * laws the question names, plus the laws of the best-matching topic — the latter only when the
+   * top result is not already a full match from a Bulgarian law of that topic.
+   */
+  private missingRelevantLaws(query: string, groups: TermGroup[], mentioned: string[], top?: { lawId: string; cov: number }): string[] {
+    const missing = new Set(mentioned.filter(id => this.lawRow(id)?.text_status === 'missing'));
+    if (groups.length >= 2) {
+      let best = 0;
+      const scored = this.reg.topics.map(t => {
+        const words = new Set(tokenize([t.title, t.summary, ...t.queries, ...t.questions].join(' ')).map(stem));
+        const hits = groups.filter(g => g.variants.some(v => [...words].some(w => w.startsWith(v.term) || (v.prefix && v.term.startsWith(w) && w.length >= 5)))).length;
+        best = Math.max(best, hits);
+        return { t, hits };
+      });
+      if (best >= 2) {
+        for (const { t, hits } of scored) {
+          if (hits !== best) continue;
+          if (top && top.cov === 1 && t.laws.includes(top.lawId)) continue;
+          for (const id of t.laws) if (this.lawRow(id)?.text_status === 'missing') missing.add(id);
+        }
+      }
+    }
+    return [...missing];
+  }
+
   search(opts: { query: string; law?: string; topic?: string; limit?: number; include_eu?: boolean }) {
     const limit = Math.min(Math.max(opts.limit ?? 8, 1), 30);
-    const q = buildFtsQueries(opts.query);
-    if (!q.strict) return { error: 'Query has no searchable words. Use Bulgarian legal terms, e.g. "годишен финансов отчет".' };
+    const groups = buildTermGroups(opts.query);
+    if (!groups.length) return { error: 'Query has no searchable words. Use Bulgarian legal terms, e.g. "годишен финансов отчет".' };
 
     let lawIds: string[] | null = null;
     if (opts.law) {
@@ -150,48 +194,92 @@ export class LexBG {
       lawIds = this.reg.laws.map(l => l.id);
     }
 
-    const run = (match: string, n: number) => {
+    const mentioned = this.mentionedLaws(opts.query);
+    // A law named in the question ("по ЗМИП") is a filter/boost, not a word to find in the text.
+    const lawWords = new Set(mentioned.flatMap(id => {
+      const l = this.reg.laws.find(x => x.id === id);
+      const e = this.reg.eu.find(x => x.celex === id);
+      return tokenize([l?.short, ...(l?.aliases ?? []), e?.short, ...(e?.aliases ?? [])].filter(Boolean).join(' '));
+    }));
+    const searchGroups = groups.filter(g => !lawWords.has(g.token));
+    if (searchGroups.length) groups.splice(0, groups.length, ...searchGroups);
+    const euQuestion = mentioned.some(id => this.lawRow(id)?.kind === 'eu')
+      || (lawIds?.every(id => this.lawRow(id)?.kind === 'eu') ?? false)
+      || /(?<!\p{L})(регламент|директив|европейск|ес)(?!\p{L})/iu.test(opts.query);
+
+    type Hit = ProvisionRow & { snippet: string; score: number };
+    const run = (match: string, n: number): Hit[] => {
       const filter = lawIds ? `AND p.law_id IN (${lawIds.map(() => '?').join(',')})` : '';
-      const sql = `SELECT p.id, p.law_id, p.kind, p.num, p.part, p.part_title, p.chapter, p.label,
+      const sql = `SELECT p.id, p.law_id, p.kind, p.num, p.part, p.part_title, p.chapter, p.label, p.text,
                           snippet(provisions_fts, 0, '«', '»', ' … ', 28) AS snippet,
                           bm25(provisions_fts, 1.0, 3.0, 0.5) AS score
                      FROM provisions_fts JOIN provisions p ON p.id = provisions_fts.rowid
                     WHERE provisions_fts MATCH ? ${filter}
                     ORDER BY score LIMIT ?`;
-      return this.db.prepare(sql).all(match, ...(lawIds ?? []), n) as unknown as Array<ProvisionRow & { snippet: string; score: number }>;
+      return this.db.prepare(sql).all(match, ...(lawIds ?? []), n) as unknown as Hit[];
     };
 
-    let rows = run(q.strict, limit);
-    let mode: 'all-terms' | 'any-term' | 'mixed' = 'all-terms';
-    if (rows.length < Math.ceil(limit / 2) && q.loose !== q.strict) {
-      const seen = new Set(rows.map(r => r.id));
-      const extra = run(q.loose!, limit * 2).filter(r => !seen.has(r.id));
-      if (extra.length) {
-        mode = rows.length ? 'mixed' : 'any-term';
-        rows = [...rows, ...extra].slice(0, limit);
-      }
-    }
+    // Candidate pool: all words → all but one → pairs → any word (last resort).
+    const pool = new Map<number, Hit>();
+    const add = (hits: Hit[]) => { for (const h of hits) if (!pool.has(h.id)) pool.set(h.id, h); };
+    add(run(allOf(groups), 60));
+    if (pool.size < 40 && groups.length >= 3) for (const c of combinations(groups, groups.length - 1, 12)) add(run(allOf(c), 25));
+    if (pool.size < 25 && groups.length >= 2) for (const c of combinations(groups, 2, 20)) add(run(allOf(c), 15));
+    if (pool.size < limit) add(run(anyOf(groups), 30));
+
+    // Rerank: coverage of the question, match in the title/opening, named law, national law first.
+    const hits = [...pool.values()];
+    const maxBm = Math.max(1e-9, ...hits.map(h => -h.score));
+    const ranked = hits.map(h => {
+      const body = h.text.replace(/^(?:Чл\.\s*\d+[а-я]?\.|§\s*\d+[а-я]?\.|Член\s+\d+[а-я]?)\s*/u, '');
+      const title = h.kind === 'art' && h.law_id.startsWith('3') ? body.split('\n')[0].replace(/^—\s*/, '') : '';
+      const lead = `${title} ${body.slice(0, 220)}`;
+      const cov = coverage(groups, `${h.text}\n${h.chapter ?? ''}`);
+      const leadCov = coverage(groups, lead);
+      const headCov = coverage(groups, `${h.chapter ?? ''} ${h.part_title ?? ''}`);
+      const law = this.lawRow(h.law_id)!;
+      // A provision that DEFINES the asked term („Действителен собственик“ е ...) is usually the answer.
+      const defines = [...h.text.matchAll(DEFINITION)].some(m => coverage(groups, m[1]) === 1);
+      const final = (-h.score / maxBm)
+        + 1.5 * cov
+        + 1.0 * leadCov
+        + 0.4 * headCov
+        + (defines ? 0.8 : 0)
+        + (mentioned.includes(h.law_id) ? 0.7 : 0)
+        - (law.kind === 'eu' && !euQuestion ? 0.4 : 0);
+      return { h, cov, final };
+    }).sort((a, b) => b.final - a.final).slice(0, limit);
+
+    const top = ranked[0] ? { lawId: ranked[0].h.law_id, cov: ranked[0].cov } : undefined;
+    const missing = this.missingRelevantLaws(opts.query, groups, mentioned, top)
+      .filter(id => !lawIds || lawIds.includes(id))
+      .map(id => this.lawRow(id)!);
+    const coverageNote = missing.length
+      ? `Probably relevant but with NO text in LexBG yet: ${missing.map(l => `${l.title} (${l.short})`).join('; ')}. Results below come from other laws; say so to the user. Amendment history is still available via what_changed.`
+      : undefined;
 
     return {
       query: opts.query,
-      terms: q.terms,
-      match_mode: mode,
-      results: rows.map(r => {
-        const law = this.lawRow(r.law_id)!;
+      coverage_note: coverageNote,
+      terms: groups.map(g => g.token),
+      match_mode: ranked.length && ranked[0].cov === 1 ? 'all-terms' : 'partial',
+      results: ranked.map(({ h, cov }) => {
+        const law = this.lawRow(h.law_id)!;
         return {
           law: law.short,
           law_id: law.id,
           law_title: law.title,
-          provision: r.label,
-          citation: this.citationFor(r, law.short),
-          chapter: r.chapter ?? r.part_title ?? undefined,
-          snippet: r.snippet,
+          provision: h.label,
+          citation: this.citationFor(h, law.short),
+          chapter: h.chapter ?? h.part_title ?? undefined,
+          snippet: h.snippet,
+          matched_terms: `${Math.round(cov * groups.length)}/${groups.length}`,
           text_status: law.text_status,
           warning: textWarning(law) ?? undefined,
           source_url: law.source_url,
         };
       }),
-      hint: rows.length
+      hint: ranked.length
         ? 'Call get_provision with law + provision for the full verbatim text.'
         : 'No matches. Try other words (Bulgarian legal vocabulary works best), or check list_laws: the law text may be missing.',
     };
@@ -269,8 +357,13 @@ export class LexBG {
   }
 
   /** Sections of amending acts (adopted after `since`) that mention "чл. N" of this law. */
+  private ownNames(lawId: string): string[] {
+    const l = this.reg.laws.find(x => x.id === lawId);
+    return l ? [l.genitive, ...(l.genitives ?? []), l.title] : [];
+  }
+
   private changesMentioning(lawId: string, num: string, since: string | null) {
-    const re = new RegExp(`(?<![\\p{L}\\d])чл\\.\\s*${num.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\dа-я])`, 'iu');
+    const own = this.ownNames(lawId);
     const acts = this.db.prepare(`SELECT a.act_id, a.title, a.adopted, a.state_gazette, a.url, m.mode, m.section_ords
                                     FROM amendments m JOIN acts a ON a.act_id = m.act_id
                                    WHERE m.law_id = ? AND m.mode != 'repeal' AND (? IS NULL OR a.adopted > ?)
@@ -278,7 +371,7 @@ export class LexBG {
     const out: Array<{ act: string; adopted: string; state_gazette: string | null; url: string; section: string; excerpt: string }> = [];
     for (const a of acts) {
       for (const s of this.sectionsFor(a.act_id, a.mode, a.section_ords)) {
-        if (re.test(s.text)) {
+        if (mentionsProvision(withoutOwnNumber(s.text), 'art', num, own)) {
           out.push({ act: a.title, adopted: a.adopted, state_gazette: a.state_gazette, url: a.url, section: s.label, excerpt: clip(s.text, 600) });
         }
       }
@@ -342,14 +435,17 @@ export class LexBG {
                                      AND (? IS NULL OR a.adopted <= ?)
                                    ORDER BY a.adopted DESC`).all(lawId, since, since, until, until) as Array<{ act_id: number; title: string; adopted: string; state_gazette: string | null; url: string; mode: string; section_ords: string }>;
 
-    // "38" / "чл. 38" → mentions of чл. 38; "§ 1" → mentions of § 1 (not the section's own number).
-    const artRe = opts.article ? mentionRegex(opts.article) : null;
+    // "38" / "чл. 38" → mentions of чл. 38 of THIS law; "§ 1" → mentions of § 1 (not the section's own number).
+    const own = this.ownNames(lawId);
+    const target = opts.article?.trim();
+    const filterKind: 'art' | 'par' = target?.startsWith('§') ? 'par' : 'art';
+    const filterNum = target?.replace(/^(?:чл\.?|§)\s*/iu, '').replace(/,.*$/, '').trim();
 
     const items = [];
     for (const a of acts) {
       let sections = this.sectionsFor(a.act_id, a.mode, a.section_ords);
-      if (artRe) sections = sections.filter(s => artRe.test(withoutOwnNumber(s.text)));
-      if (artRe && sections.length === 0) continue;
+      if (filterNum) sections = sections.filter(s => mentionsProvision(withoutOwnNumber(s.text), filterKind, filterNum, own));
+      if (filterNum && sections.length === 0) continue;
       items.push({
         act: a.title,
         adopted: a.adopted,
@@ -537,22 +633,8 @@ function matchCondition(c: Condition, p: Profile): string | null {
 const AMENDS_OTHER_LAW =
   /^(?:§|Чл\.)\s*\d+[а-я]?\.\s*(?:\(\d+\)\s*)?В\s+(?:[^;()]{0,120}?\s+от\s+)?(?:Закона|Кодекса|Търговския|Данъчно|Изборния|Наказателния|Граждански|Административнопроцесуалния|Конституцията|Семейния|Наказателно)/u;
 
-function escapeRe(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function mentionRegex(article: string): RegExp {
-  const a = article.trim();
-  if (a.startsWith('§')) {
-    return new RegExp(`(?<![\\p{L}\\d])§\\s*${escapeRe(a.replace(/^§\s*/u, ''))}(?![\\dа-я])`, 'iu');
-  }
-  return new RegExp(`(?<![\\p{L}\\d])чл\\.\\s*${escapeRe(a.replace(/^чл\.?\s*/iu, ''))}(?![\\dа-я])`, 'iu');
-}
-
-/** Drop the leading "§ 38." / "Чл. 5." of a section so its own number doesn't match a filter. */
-function withoutOwnNumber(text: string): string {
-  return text.replace(/^(?:§|Чл\.)\s*\d+[а-я]?\.\s*/u, '');
-}
+/** Quoted term followed by a defining verb: „Действителен собственик“ е ..., 2. „Група предприятия“ са ... */
+const DEFINITION = /„([^“]{2,120})“\s*(?:е|са|означава|се разбира|има значение)(?![\p{L}])/gu;
 
 function clip(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max)} …`;

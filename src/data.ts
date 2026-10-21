@@ -18,7 +18,7 @@ import * as zlib from 'node:zlib';
 import { SCHEMA_VERSION } from './db.js';
 import { findRoot } from './registry.js';
 
-export const DEFAULT_DATA_URL = 'https://github.com/StanK1/LexBG/releases/download/data';
+export const DEFAULT_DATA_URL = 'https://github.com/StanK1/lexbg-mcp/releases/download/data';
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 interface Manifest {

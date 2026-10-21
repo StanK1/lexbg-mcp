@@ -150,7 +150,7 @@ laws:
     short: ЗМИП
     title: Закон за мерките срещу изпирането на пари
     genitive: Закона за мерките срещу изпирането на пари
-    aliases: [aml act, anti-money laundering, изпиране на пари, AML]
+    aliases: [aml act, anti-money laundering, изпиране на пари, изпирането на пари, AML]
     topics: [aml]
 
   - id: zmft

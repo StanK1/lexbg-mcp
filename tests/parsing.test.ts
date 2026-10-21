@@ -4,7 +4,8 @@ import { detectPart, extractParagraph, extractPoint, parseBulgarianAct } from '.
 import { parseEuAct } from '../src/text/parse-eu.js';
 import { extractEuReferences } from '../src/text/eu-refs.js';
 import { formatCitation, parseCitation } from '../src/text/citation.js';
-import { buildFtsQueries, stem, tokenize } from '../src/text/fts.js';
+import { buildFtsQueries, buildTermGroups, coverage, stem, tokenize } from '../src/text/fts.js';
+import { mentionsProvision } from '../src/text/mentions.js';
 
 const LAW = `
 <p>Глава първа</p><p>ОБЩИ ПОЛОЖЕНИЯ</p>
@@ -99,6 +100,20 @@ describe('extractEuReferences', () => {
   });
 });
 
+describe('mentionsProvision', () => {
+  const own = ['Закона за счетоводството'];
+  it('ignores an article number that belongs to another law', () => {
+    const text = 'В Закона за счетоводството се правят изменения: 1. В чл. 38 ал. 9 ... такси по чл. 12, ал. 1, т. 1 от Закона за търговския регистър и регистъра на юридическите лица';
+    expect(mentionsProvision(text, 'art', '12', own)).toBe(false);
+    expect(mentionsProvision(text, 'art', '38', own)).toBe(true);
+  });
+  it('counts mentions of the law itself and of the transitional provisions', () => {
+    expect(mentionsProvision('по чл. 12, ал. 2 от Закона за счетоводството', 'art', '12', own)).toBe(true);
+    expect(mentionsProvision('съгласно чл. 12 от този закон', 'art', '12', own)).toBe(true);
+    expect(mentionsProvision('В чл. 120 се правят изменения', 'art', '12', own)).toBe(false);
+  });
+});
+
 describe('parseCitation', () => {
   it('reads article, алинея and точка', () => {
     expect(parseCitation('чл. 6, ал. 1, т. 2 от ЗЗЛД')).toMatchObject({ kind: 'art', num: '6', alineya: '1', point: '2', lawText: 'ЗЗЛД' });
@@ -132,6 +147,20 @@ describe('fts query building', () => {
     expect(stem('задълженията')).toBe('задължен');
     expect(stem('финансовия')).toBe('финанс');
     expect(stem('дом')).toBe('дом');
+  });
+
+  it('does not over-strip short words into unrelated ones (платен ≠ платежна)', () => {
+    expect(stem('платен')).toBe('платен');
+    expect(coverage(buildTermGroups('платен'), 'платежна институция')).toBe(0);
+    expect(stem('превалутират')).toBe('превалутир');
+    expect(coverage(buildTermGroups('превалутират'), 'превалутирането от левове')).toBe(1);
+  });
+
+  it('bridges everyday words and legal vocabulary', () => {
+    const groups = buildTermGroups('Мога ли да се откажа от покупка онлайн?');
+    expect(coverage(groups, 'право на отказ от договор от разстояние')).toBe(1);
+    expect(coverage(buildTermGroups('изкуствен интелект'), 'системи с ИИ')).toBe(1);
+    expect(coverage(buildTermGroups('колко време'), 'в срок 5 години')).toBe(1);
   });
 
   it('builds strict and loose queries', () => {

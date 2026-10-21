@@ -4,7 +4,7 @@
 
 LexBG runs entirely on your machine: one SQLite file, no cloud services, no API key needed. Point Claude (or any MCP client) at it and ask in Bulgarian or English — answers come back as verbatim provisions with citations, plus an honest warning about whether the text is current.
 
-[![CI](https://github.com/StanK1/LexBG/actions/workflows/ci.yml/badge.svg)](https://github.com/StanK1/LexBG/actions/workflows/ci.yml)
+[![CI](https://github.com/StanK1/lexbg-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/StanK1/lexbg-mcp/actions/workflows/ci.yml)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Node 22.13+](https://img.shields.io/badge/node-%E2%89%A522.13-green.svg)
 
@@ -56,7 +56,7 @@ Most tools index whatever text they can find and label it "in force". LexBG is b
   "mcpServers": {
     "lexbg": {
       "command": "npx",
-      "args": ["-y", "https://github.com/StanK1/LexBG/releases/latest/download/lexbg.tgz"]
+      "args": ["-y", "https://github.com/StanK1/lexbg-mcp/releases/latest/download/lexbg.tgz"]
     }
   }
 }
@@ -67,7 +67,7 @@ Restart Claude Desktop; the LexBG tools and prompts appear in the tools menu.
 **Claude Code**
 
 ```bash
-claude mcp add lexbg -- npx -y https://github.com/StanK1/LexBG/releases/latest/download/lexbg.tgz
+claude mcp add lexbg -- npx -y https://github.com/StanK1/lexbg-mcp/releases/latest/download/lexbg.tgz
 ```
 
 **Docker** (any MCP client that can run a command)
@@ -78,7 +78,7 @@ docker run -i --rm -v lexbg-data:/data ghcr.io/stank1/lexbg
 
 On first start LexBG downloads the ready-made database (rebuilt every week from parliament.bg and EUR-Lex, checksum-verified) to `~/.lexbg/`. After that it starts instantly, works offline, and checks once a day for the next weekly build. Tool calls made during the first download simply wait for it.
 
-**Recommended:** install the Claude skill [`skills/lexbg-research`](skills/lexbg-research/SKILL.md) (`lexbg-research-skill.zip` in the [latest release](https://github.com/StanK1/LexBG/releases/latest)) so Claude follows the full research method. [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) explains what the model sees and how it decides which tool to call.
+**Recommended:** install the Claude skill [`skills/lexbg-research`](skills/lexbg-research/SKILL.md) (`lexbg-research-skill.zip` in the [latest release](https://github.com/StanK1/lexbg-mcp/releases/latest)) so Claude follows the full research method. [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) explains what the model sees and how it decides which tool to call.
 
 | Setting | Default | Purpose |
 |---|---|---|
@@ -89,7 +89,7 @@ On first start LexBG downloads the ready-made database (rebuilt every week from 
 ### Build the data yourself (contributors)
 
 ```bash
-git clone https://github.com/StanK1/LexBG.git && cd LexBG
+git clone https://github.com/StanK1/lexbg-mcp.git && cd LexBG
 npm install && npm run build
 npm run fetch:parliament        # all acts (~45 min the first time; resumable)
 npm run fetch:eurlex            # EU acts via the Publications Office API
@@ -193,7 +193,7 @@ Code licensed under the [MIT License](LICENSE).
 Инсталация за една минута — добавете в Claude Desktop (Settings → Developer → Edit Config):
 
 ```json
-{ "mcpServers": { "lexbg": { "command": "npx", "args": ["-y", "https://github.com/StanK1/LexBG/releases/latest/download/lexbg.tgz"] } } }
+{ "mcpServers": { "lexbg": { "command": "npx", "args": ["-y", "https://github.com/StanK1/lexbg-mcp/releases/latest/download/lexbg.tgz"] } } }
 ```
 
 При първо стартиране LexBG изтегля готовата база данни (обновява се всяка седмица от parliament.bg и EUR-Lex) и след това стартира веднага и работи офлайн. Всеки отговор съдържа предупреждение дали текстът е актуален (консолидиран), оригинален (без последващите изменения) или липсва. LexBG е инструмент за проучване, а не правен съвет.

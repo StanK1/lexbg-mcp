@@ -2,7 +2,7 @@ name: Release
 
 # Publish a release: push a tag like v0.2.0, OR run this workflow manually (Actions → Release →
 # Run workflow) — then the tag v<package.json version> is created for you. Publishes:
-#   - lexbg.tgz            installable with: npx -y https://github.com/StanK1/LexBG/releases/latest/download/lexbg.tgz
+#   - lexbg.tgz            installable with: npx -y https://github.com/StanK1/lexbg-mcp/releases/latest/download/lexbg.tgz
 #   - lexbg-research-skill.zip   the Claude skill
 #   - ghcr.io/stank1/lexbg       Docker image
 on:

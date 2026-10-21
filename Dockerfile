@@ -19,7 +19,7 @@ COPY --from=build /app/dist/src dist/src
 COPY sources sources
 COPY skills skills
 VOLUME /data
-LABEL org.opencontainers.image.source="https://github.com/StanK1/LexBG" \
+LABEL org.opencontainers.image.source="https://github.com/StanK1/lexbg-mcp" \
       org.opencontainers.image.description="LexBG — MCP server for Bulgarian legal & compliance research" \
       org.opencontainers.image.licenses="MIT"
 ENTRYPOINT ["node", "dist/src/index.js"]

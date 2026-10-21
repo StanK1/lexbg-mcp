@@ -1,70 +1,121 @@
-# Retrieval eval over your local database (data/lexbg.db).
-# Each expected citation was verified by reading the provision text, NOT by looking at search results.
+# Retrieval eval over the weekly database (data/lexbg.db or ~/.lexbg/lexbg.db).
+# Every expected provision was verified by READING the provision text, not by looking at search results.
 #
-#   question  natural user question (Bulgarian)
+#   question  natural user question (Bulgarian), as a person would type it
 #   law       optional: restrict the search to one law (omit to test retrieval across all laws)
 #   expect    a hit is counted if ANY of these provisions is in the top-k
-
 #
-# Start: these cases are copied from evals/fixtures.yml and stay valid on the full corpus.
-# Grow this file to 50–100 cases as you add consolidated texts (aim to cover every topic pack),
-# and ask someone with legal training to check the expected citations.
+# Covers only laws that have text in the weekly build (see `npm run coverage`). Add cases when
+# more laws get consolidated texts. Cases the search fails today are kept on purpose.
+
 cases:
+  # --- Закон за счетоводството (ЗСч) ---------------------------------------------------------
   - id: zsch-payroll-retention
     question: Колко години трябва да се пазят ведомостите за заплати?
     expect: [чл. 12 ЗСч]
-
   - id: zsch-publication-deadline
     question: До кога трябва да се публикува годишният финансов отчет в търговския регистър?
     expect: [чл. 38 ЗСч]
-
-  - id: zsch-group-definition
-    question: Какво е група предприятия по смисъла на закона за счетоводството?
-    law: ЗСч
-    expect: [§ 1 от ДР на ЗСч]
-
   - id: zsch-enterprise-categories
     question: Какви са категориите предприятия – микро, малки, средни и големи?
     expect: [чл. 19 ЗСч]
-
   - id: zsch-accounting-document
     question: Какво е счетоводен документ?
     law: ЗСч
     expect: [чл. 4 ЗСч]
-
   - id: zsch-manager-duties
     question: Какви са задълженията на ръководителя на предприятието за счетоводството?
     expect: [чл. 16 ЗСч]
 
+  # --- ЗМИП ------------------------------------------------------------------------------------
   - id: zmip-beneficial-owner
     question: Кой е действителен собственик на фирма?
     expect: [§ 2 от ДР на ЗМИП]
-
   - id: zmip-pep
     question: Какви мерки се прилагат към видни политически личности?
     expect: [чл. 36 ЗМИП]
-
-  - id: zmip-when-cdd
-    question: Кога се извършва комплексна проверка на клиента?
-    law: ЗМИП
-    expect: [чл. 11 ЗМИП]
-
+  - id: zmip-record-keeping
+    question: Колко време се съхраняват документите от комплексната проверка по ЗМИП?
+    expect: [чл. 67 ЗМИП]
+  - id: zmip-report-suspicion
+    question: Кого трябва да уведомя при съмнение за изпиране на пари?
+    expect: [чл. 72 ЗМИП]
+  - id: zmip-source-of-funds
+    question: Как се изяснява произходът на средствата на клиента?
+    expect: [чл. 66 ЗМИП]
   - id: zmip-obliged-entities
     question: За кои лица са задължителни мерките срещу изпирането на пари?
     expect: [чл. 4 ЗМИП]
 
-  - id: zmip-measures-list
-    question: Какви са мерките за превенция на изпирането на пари?
-    expect: [чл. 3 ЗМИП]
-
+  # --- ЗВЕРБ (еврото) --------------------------------------------------------------------------
   - id: zverb-dual-pricing
     question: Как трябва да се обозначават цените в евро и в левове?
     expect: [чл. 15 ЗВЕРБ, чл. 16 ЗВЕРБ, чл. 17 ЗВЕРБ]
+  - id: zverb-exchange-rate
+    question: Какъв е официалният курс на лева към еврото?
+    expect: [чл. 5 ЗВЕРБ]
+  - id: zverb-conversion-rounding
+    question: Как се превалутират сумите от левове в евро и как се закръглят?
+    expect: [чл. 12 ЗВЕРБ, чл. 13 ЗВЕРБ]
 
-  - id: zverb-capital
-    question: Как се превалутира капиталът на дружество с ограничена отговорност в евро?
-    expect: [чл. 30 ЗВЕРБ, чл. 31 ЗВЕРБ, чл. 32 ЗВЕРБ, чл. 33 ЗВЕРБ]
+  # --- Сигнализиране (ЗЗЛПСПОИН) ---------------------------------------------------------------
+  - id: whistle-obliged-employers
+    question: Кои работодатели са длъжни да имат канал за вътрешно подаване на сигнали?
+    expect: [чл. 12 ЗЗЛПСПОИН]
+  - id: whistle-anonymous
+    question: Разглеждат ли се анонимни сигнали за нарушения?
+    expect: [чл. 9 ЗЗЛПСПОИН]
 
-  - id: zverb-date
-    question: Коя е датата на въвеждане на еврото в България?
-    expect: [чл. 3 ЗВЕРБ]
+  # --- Потребителски кредит (ЗПК) --------------------------------------------------------------
+  - id: zpk-withdrawal
+    question: Мога ли да се откажа от потребителски кредит и в какъв срок?
+    expect: [чл. 29 ЗПК]
+  - id: zpk-early-repayment
+    question: Имам ли право да погася кредита предсрочно?
+    expect: [чл. 32 ЗПК]
+  - id: zpk-creditworthiness
+    question: Длъжен ли е кредиторът да провери кредитоспособността ми?
+    expect: [чл. 16 ЗПК]
+  - id: zpk-apr
+    question: Какво включва годишният процент на разходите по кредита?
+    expect: [чл. 19 ЗПК]
+
+  # --- Платежни услуги (ЗПУПС) -----------------------------------------------------------------
+  - id: zpups-unauthorised
+    question: Кой връща парите при неразрешено плащане от сметката ми?
+    expect: [чл. 79 ЗПУПС]
+  - id: zpups-lost-card
+    question: Каква загуба понасям при изгубена или открадната карта?
+    expect: [чл. 80 ЗПУПС]
+
+  # --- EU acts ---------------------------------------------------------------------------------
+  - id: gdpr-erasure
+    question: Имам ли право да поискам изтриване на личните ми данни?
+    expect: [чл. 17 GDPR]
+  - id: gdpr-breach-72h
+    question: В какъв срок се уведомява надзорният орган за нарушение на сигурността на личните данни?
+    expect: [чл. 33 GDPR]
+  - id: gdpr-dpo
+    question: Кога трябва да се определи длъжностно лице по защита на данните?
+    expect: [чл. 37 GDPR]
+  - id: gdpr-lawful-basis
+    question: Кога обработването на лични данни е законосъобразно?
+    expect: [чл. 6 GDPR]
+  - id: gdpr-consent
+    question: Какви са условията за валидно съгласие за обработване на лични данни?
+    expect: [чл. 7 GDPR]
+  - id: ai-act-prohibited
+    question: Кои практики с изкуствен интелект са забранени?
+    expect: [чл. 5 AI Act]
+  - id: ai-act-high-risk
+    question: Кога една система с изкуствен интелект е високорискова?
+    expect: [чл. 6 AI Act]
+  - id: dora-incident-reporting
+    question: Как финансовите институции докладват съществени инциденти с ИКТ?
+    expect: [чл. 19 DORA]
+  - id: nis2-essential-entities
+    question: Кои са съществените и важните субекти по NIS2?
+    expect: [чл. 3 NIS2]
+  - id: consumer-withdrawal-14
+    question: Колко дни има потребителят да се откаже от покупка онлайн?
+    expect: [чл. 9 Consumer Rights Directive]
