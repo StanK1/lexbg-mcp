@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Retrieval eval on fixtures (quality gate)
+        run: |
+          LEXBG_RAW=fixtures/raw LEXBG_MANUAL=fixtures/manual-test node dist/scripts/build-db.js --out "$RUNNER_TEMP/fixtures.db"
+          node dist/scripts/eval.js --file evals/fixtures.yml --db "$RUNNER_TEMP/fixtures.db" --min-hit5 0.78
+      - name: MCP server starts
+        run: |
+          LEXBG_RAW=fixtures/raw node dist/scripts/build-db.js --out data/lexbg.db
+          node dist/scripts/smoke.js

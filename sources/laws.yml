@@ -1,0 +1,254 @@
+# LexBG — registry of Bulgarian laws tracked by the server.
+#
+# Fields
+#   id          stable identifier used in tool calls (latin, lowercase)
+#   short       common Bulgarian abbreviation
+#   title       exact official title (used to find the original act on parliament.bg)
+#   base_titles extra exact titles the law had over time (renamed laws)
+#   genitive    the form used in amending acts: "Закон за изменение на <genitive>",
+#               "§ 5. В <genitive> (обн., ДВ ...) се правят следните изменения"
+#   genitives   extra genitive forms (former names)
+#   aliases     other names users type (English names, variants)
+#   topics      topic pack ids from sources/topics.yml
+#
+# Text sources, in order of preference (see DATA_SOURCES.md):
+#   1. data/manual/<id>.html|.txt  — consolidated text you downloaded from an OFFICIAL source
+#   2. the original promulgated act on parliament.bg (only for laws adopted since ~2005)
+#   Amendments are always tracked from parliament.bg, so `what_changed` works for every law.
+
+laws:
+  - id: constitution
+    short: КРБ
+    title: Конституция на Република България
+    genitive: Конституцията на Република България
+    aliases: [конституция, constitution, конституцията]
+    topics: [citizens-rights]
+
+  - id: tz
+    short: ТЗ
+    title: Търговски закон
+    genitive: Търговския закон
+    aliases: [commercial act, търговски закон, commerce act]
+    topics: [company-formation]
+
+  - id: ztrrjlnc
+    short: ЗТРРЮЛНЦ
+    title: Закон за търговския регистър и регистъра на юридическите лица с нестопанска цел
+    base_titles: [Закон за търговския регистър]
+    genitive: Закона за търговския регистър и регистъра на юридическите лица с нестопанска цел
+    genitives: [Закона за търговския регистър]
+    aliases: [ЗТР, търговски регистър, commercial register act]
+    topics: [company-formation]
+
+  - id: zjlnc
+    short: ЗЮЛНЦ
+    title: Закон за юридическите лица с нестопанска цел
+    genitive: Закона за юридическите лица с нестопанска цел
+    aliases: [нпо, ngo act, non-profit act, сдружение, фондация]
+    topics: [company-formation]
+
+  - id: zmsp
+    short: ЗМСП
+    title: Закон за малките и средните предприятия
+    genitive: Закона за малките и средните предприятия
+    aliases: [sme act, малки и средни предприятия]
+    topics: [company-formation]
+
+  - id: zsch
+    short: ЗСч
+    title: Закон за счетоводството
+    genitive: Закона за счетоводството
+    aliases: [ЗСЧ, accounting act, счетоводство]
+    topics: [accounting]
+
+  - id: znfo
+    short: ЗНФО
+    title: Закон за независимия финансов одит
+    base_titles: [Закон за независимия финансов одит и изразяването на сигурност по устойчивостта]
+    genitive: Закона за независимия финансов одит
+    aliases: [audit act, одит, независим финансов одит]
+    topics: [accounting]
+
+  - id: zkpo
+    short: ЗКПО
+    title: Закон за корпоративното подоходно облагане
+    genitive: Закона за корпоративното подоходно облагане
+    aliases: [corporate income tax act, корпоративен данък, CIT]
+    topics: [corporate-tax]
+
+  - id: zddfl
+    short: ЗДДФЛ
+    title: Закон за данъците върху доходите на физическите лица
+    genitive: Закона за данъците върху доходите на физическите лица
+    aliases: [personal income tax act, данък общ доход, PIT]
+    topics: [personal-income-tax]
+
+  - id: zdds
+    short: ЗДДС
+    title: Закон за данък върху добавената стойност
+    genitive: Закона за данък върху добавената стойност
+    aliases: [vat act, ддс, VAT]
+    topics: [vat]
+
+  - id: dopk
+    short: ДОПК
+    title: Данъчно-осигурителен процесуален кодекс
+    genitive: Данъчно-осигурителния процесуален кодекс
+    aliases: [tax and social security procedure code, данъчна процедура]
+    topics: [tax-procedure]
+
+  - id: zmdt
+    short: ЗМДТ
+    title: Закон за местните данъци и такси
+    genitive: Закона за местните данъци и такси
+    aliases: [local taxes act, местни данъци, данък сгради, такса битови отпадъци]
+    topics: [local-taxes]
+
+  - id: kso
+    short: КСО
+    title: Кодекс за социално осигуряване
+    genitive: Кодекса за социално осигуряване
+    aliases: [social security code, осигуровки, социално осигуряване]
+    topics: [social-security]
+
+  - id: zzo
+    short: ЗЗО
+    title: Закон за здравното осигуряване
+    genitive: Закона за здравното осигуряване
+    aliases: [health insurance act, здравни осигуровки]
+    topics: [social-security]
+
+  - id: kt
+    short: КТ
+    title: Кодекс на труда
+    genitive: Кодекса на труда
+    aliases: [labour code, labor code, трудово право, трудов договор]
+    topics: [employment]
+
+  - id: zzbut
+    short: ЗЗБУТ
+    title: Закон за здравословни и безопасни условия на труд
+    genitive: Закона за здравословни и безопасни условия на труд
+    aliases: [occupational safety act, безопасност на труда]
+    topics: [employment]
+
+  - id: zzd
+    short: ЗЗД
+    title: Закон за задълженията и договорите
+    genitive: Закона за задълженията и договорите
+    aliases: [obligations and contracts act, договори, облигационно право]
+    topics: [citizens-rights, consumer-ecommerce]
+
+  - id: zann
+    short: ЗАНН
+    title: Закон за административните нарушения и наказания
+    genitive: Закона за административните нарушения и наказания
+    aliases: [administrative violations act, глоби, наказателно постановление, акт за нарушение]
+    topics: [citizens-rights, tax-procedure]
+
+  - id: zmip
+    short: ЗМИП
+    title: Закон за мерките срещу изпирането на пари
+    genitive: Закона за мерките срещу изпирането на пари
+    aliases: [aml act, anti-money laundering, изпиране на пари, AML]
+    topics: [aml]
+
+  - id: zmft
+    short: ЗМФТ
+    title: Закон за мерките срещу финансирането на тероризма
+    genitive: Закона за мерките срещу финансирането на тероризма
+    aliases: [counter-terrorist financing act, CFT]
+    topics: [aml]
+
+  - id: zzld
+    short: ЗЗЛД
+    title: Закон за защита на личните данни
+    genitive: Закона за защита на личните данни
+    aliases: [personal data protection act, лични данни, GDPR закон]
+    topics: [data-protection]
+
+  - id: zzp
+    short: ЗЗП
+    title: Закон за защита на потребителите
+    genitive: Закона за защита на потребителите
+    aliases: [consumer protection act, права на потребителите, рекламация]
+    topics: [consumer-ecommerce, citizens-rights]
+
+  - id: zet
+    short: ЗЕТ
+    title: Закон за електронната търговия
+    genitive: Закона за електронната търговия
+    aliases: [e-commerce act, онлайн магазин, електронна търговия]
+    topics: [consumer-ecommerce]
+
+  - id: zpk
+    short: ЗПК
+    title: Закон за потребителския кредит
+    genitive: Закона за потребителския кредит
+    aliases: [consumer credit act, потребителски кредит, бърз кредит]
+    topics: [consumer-ecommerce, financial-services]
+
+  - id: zedeuu
+    short: ЗЕДЕУУ
+    title: Закон за електронния документ и електронните удостоверителни услуги
+    base_titles: [Закон за електронния документ и електронния подпис]
+    genitive: Закона за електронния документ и електронните удостоверителни услуги
+    genitives: [Закона за електронния документ и електронния подпис]
+    aliases: [electronic document act, електронен подпис, КЕП, e-signature]
+    topics: [company-formation, consumer-ecommerce]
+
+  - id: zki
+    short: ЗКИ
+    title: Закон за кредитните институции
+    genitive: Закона за кредитните институции
+    aliases: [credit institutions act, банки, banking act]
+    topics: [financial-services]
+
+  - id: zpups
+    short: ЗПУПС
+    title: Закон за платежните услуги и платежните системи
+    genitive: Закона за платежните услуги и платежните системи
+    aliases: [payment services act, платежни услуги, PSD2 закон]
+    topics: [payments]
+
+  - id: zpfi
+    short: ЗПФИ
+    title: Закон за пазарите на финансови инструменти
+    genitive: Закона за пазарите на финансови инструменти
+    aliases: [markets in financial instruments act, MiFID закон, инвестиционни посредници]
+    topics: [financial-services]
+
+  - id: zks
+    short: ЗКС
+    title: Закон за киберсигурност
+    genitive: Закона за киберсигурност
+    aliases: [cybersecurity act, киберсигурност, NIS2 закон]
+    topics: [cybersecurity]
+
+  - id: zveurb
+    short: ЗВЕРБ
+    title: Закон за въвеждане на еврото в Република България
+    genitive: Закона за въвеждане на еврото в Република България
+    aliases: [euro adoption act, еврото, въвеждане на еврото, euro changeover]
+    topics: [euro-changeover]
+
+  - id: zzdiskr
+    short: ЗЗДискр
+    title: Закон за защита от дискриминация
+    genitive: Закона за защита от дискриминация
+    aliases: [anti-discrimination act, дискриминация]
+    topics: [citizens-rights, employment]
+
+  - id: zdoi
+    short: ЗДОИ
+    title: Закон за достъп до обществена информация
+    genitive: Закона за достъп до обществена информация
+    aliases: [access to public information act, обществена информация, FOIA]
+    topics: [citizens-rights]
+
+  - id: zzlpspoin
+    short: ЗЗЛПСПОИН
+    title: Закон за защита на лицата, подаващи сигнали или публично оповестяващи информация за нарушения
+    genitive: Закона за защита на лицата, подаващи сигнали или публично оповестяващи информация за нарушения
+    aliases: [whistleblower act, whistleblowing, сигнализиране, подаване на сигнали]
+    topics: [whistleblowing]

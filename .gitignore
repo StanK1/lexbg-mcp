@@ -1,0 +1,9 @@
+node_modules/
+dist/
+data/raw/
+data/*.db
+data/*.db-*
+data/coverage.md
+data/eval-report.json
+.env
+.DS_Store

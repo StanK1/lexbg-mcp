@@ -1,0 +1,105 @@
+# LexBG — EU acts fetched from EUR-Lex in Bulgarian.
+# celex: CELEX number (sector 3 = legislation, R = regulation, L = directive)
+
+eu_acts:
+  - celex: 32016R0679
+    short: GDPR
+    title: Регламент (ЕС) 2016/679 (Общ регламент относно защитата на данните)
+    aliases: [gdpr, ограсд, общ регламент, 2016/679]
+    topics: [data-protection]
+
+  - celex: 32022R2554
+    short: DORA
+    title: Регламент (ЕС) 2022/2554 относно оперативната устойчивост на цифровите технологии за финансовия сектор
+    aliases: [dora, 2022/2554]
+    topics: [financial-services, cybersecurity]
+
+  - celex: 32024R1689
+    short: AI Act
+    title: Регламент (ЕС) 2024/1689 за установяване на хармонизирани правила относно изкуствения интелект
+    aliases: [ai act, акт за изкуствения интелект, 2024/1689]
+    topics: [data-protection, financial-services]
+
+  - celex: 32022L2555
+    short: NIS2
+    title: Директива (ЕС) 2022/2555 (NIS2)
+    aliases: [nis2, nis 2, 2022/2555]
+    topics: [cybersecurity]
+
+  - celex: 32015L2366
+    short: PSD2
+    title: Директива (ЕС) 2015/2366 за платежните услуги на вътрешния пазар
+    aliases: [psd2, 2015/2366]
+    topics: [payments]
+
+  - celex: 32015L0849
+    short: AMLD4
+    title: Директива (ЕС) 2015/849 за предотвратяване използването на финансовата система за изпиране на пари
+    aliases: [amld, amld4, 2015/849]
+    topics: [aml]
+
+  - celex: 32024R1624
+    short: AMLR
+    title: Регламент (ЕС) 2024/1624 за предотвратяване на използването на финансовата система за целите на изпирането на пари
+    aliases: [amlr, 2024/1624]
+    topics: [aml]
+
+  - celex: 32023R1114
+    short: MiCA
+    title: Регламент (ЕС) 2023/1114 относно пазарите на криптоактиви
+    aliases: [mica, криптоактиви, 2023/1114]
+    topics: [financial-services]
+
+  - celex: 32013R0575
+    short: CRR
+    title: Регламент (ЕС) № 575/2013 относно пруденциалните изисквания за кредитните институции
+    aliases: [crr, 575/2013]
+    topics: [financial-services]
+
+  - celex: 32006L0112
+    short: VAT Directive
+    title: Директива 2006/112/ЕО на Съвета относно общата система на данъка върху добавената стойност
+    aliases: [vat directive, ддс директива, 2006/112]
+    topics: [vat]
+
+  - celex: 32013L0034
+    short: Accounting Directive
+    title: Директива 2013/34/ЕС относно годишните финансови отчети
+    aliases: [accounting directive, счетоводна директива, 2013/34]
+    topics: [accounting]
+
+  - celex: 32022L2464
+    short: CSRD
+    title: Директива (ЕС) 2022/2464 по отношение на отчитането във връзка с устойчивостта от страна на предприятията
+    aliases: [csrd, устойчивост, 2022/2464]
+    topics: [accounting]
+
+  - celex: 32014R0910
+    short: eIDAS
+    title: Регламент (ЕС) № 910/2014 относно електронната идентификация и удостоверителните услуги
+    aliases: [eidas, 910/2014]
+    topics: [company-formation, consumer-ecommerce]
+
+  - celex: 32022R2065
+    short: DSA
+    title: Регламент (ЕС) 2022/2065 относно единния пазар на цифрови услуги (Акт за цифровите услуги)
+    aliases: [dsa, digital services act, 2022/2065]
+    topics: [consumer-ecommerce]
+
+  - celex: 32011L0083
+    short: Consumer Rights Directive
+    title: Директива 2011/83/ЕС относно правата на потребителите
+    aliases: [consumer rights directive, 2011/83]
+    topics: [consumer-ecommerce]
+
+  - celex: 32019L1937
+    short: Whistleblower Directive
+    title: Директива (ЕС) 2019/1937 относно защитата на лицата, които подават сигнали за нарушения на правото на Съюза
+    aliases: [whistleblower directive, 2019/1937]
+    topics: [whistleblowing]
+
+  - celex: 31998R0974
+    short: Euro Regulation
+    title: Регламент (ЕО) № 974/98 на Съвета относно въвеждането на еврото
+    aliases: [974/98, euro regulation]
+    topics: [euro-changeover]

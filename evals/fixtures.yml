@@ -1,0 +1,66 @@
+# Retrieval eval over the test fixtures (Закон за счетоводството 2015, ЗМИП 2017, ЗВЕРБ 2024).
+# Each expected citation was verified by reading the provision text, NOT by looking at search results.
+#
+#   question  natural user question (Bulgarian)
+#   law       optional: restrict the search to one law (omit to test retrieval across all laws)
+#   expect    a hit is counted if ANY of these provisions is in the top-k
+
+cases:
+  - id: zsch-payroll-retention
+    question: Колко години трябва да се пазят ведомостите за заплати?
+    expect: [чл. 12 ЗСч]
+
+  - id: zsch-publication-deadline
+    question: До кога трябва да се публикува годишният финансов отчет в търговския регистър?
+    expect: [чл. 38 ЗСч]
+
+  - id: zsch-group-definition
+    question: Какво е група предприятия по смисъла на закона за счетоводството?
+    law: ЗСч
+    expect: [§ 1 от ДР на ЗСч]
+
+  - id: zsch-enterprise-categories
+    question: Какви са категориите предприятия – микро, малки, средни и големи?
+    expect: [чл. 19 ЗСч]
+
+  - id: zsch-accounting-document
+    question: Какво е счетоводен документ?
+    law: ЗСч
+    expect: [чл. 4 ЗСч]
+
+  - id: zsch-manager-duties
+    question: Какви са задълженията на ръководителя на предприятието за счетоводството?
+    expect: [чл. 16 ЗСч]
+
+  - id: zmip-beneficial-owner
+    question: Кой е действителен собственик на фирма?
+    expect: [§ 2 от ДР на ЗМИП]
+
+  - id: zmip-pep
+    question: Какви мерки се прилагат към видни политически личности?
+    expect: [чл. 36 ЗМИП]
+
+  - id: zmip-when-cdd
+    question: Кога се извършва комплексна проверка на клиента?
+    law: ЗМИП
+    expect: [чл. 11 ЗМИП]
+
+  - id: zmip-obliged-entities
+    question: За кои лица са задължителни мерките срещу изпирането на пари?
+    expect: [чл. 4 ЗМИП]
+
+  - id: zmip-measures-list
+    question: Какви са мерките за превенция на изпирането на пари?
+    expect: [чл. 3 ЗМИП]
+
+  - id: zverb-dual-pricing
+    question: Как трябва да се обозначават цените в евро и в левове?
+    expect: [чл. 15 ЗВЕРБ, чл. 16 ЗВЕРБ, чл. 17 ЗВЕРБ]
+
+  - id: zverb-capital
+    question: Как се превалутира капиталът на дружество с ограничена отговорност в евро?
+    expect: [чл. 30 ЗВЕРБ, чл. 31 ЗВЕРБ, чл. 32 ЗВЕРБ, чл. 33 ЗВЕРБ]
+
+  - id: zverb-date
+    question: Коя е датата на въвеждане на еврото в България?
+    expect: [чл. 3 ЗВЕРБ]

@@ -1,0 +1,53 @@
+{
+  "name": "lexbg",
+  "version": "0.1.0",
+  "description": "LexBG — open-source MCP server for Bulgarian legal & compliance research: laws, amendments, EU links and compliance topic packs. Runs fully locally on SQLite.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Stanislav Krastev",
+  "bin": {
+    "lexbg": "dist/src/index.js"
+  },
+  "main": "dist/src/index.js",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/index.js",
+    "dev": "tsx src/index.ts",
+    "fetch:parliament": "tsx scripts/fetch-parliament.ts",
+    "fetch:eurlex": "tsx scripts/fetch-eurlex.ts",
+    "build:db": "tsx scripts/build-db.ts",
+    "coverage": "tsx scripts/coverage.ts",
+    "eval": "tsx scripts/eval.ts",
+    "extract:obligations": "tsx scripts/extract-obligations.ts",
+    "setup": "npm run build && npm run fetch:parliament -- --only-tracked && npm run fetch:eurlex && npm run build:db && npm run coverage && npm run smoke",
+    "test": "vitest run",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "smoke": "tsx scripts/smoke.ts"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "bulgaria",
+    "bulgarian-law",
+    "compliance",
+    "legal-tech",
+    "accounting",
+    "tax",
+    "gdpr",
+    "aml"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "yaml": "^2.8.1",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}
