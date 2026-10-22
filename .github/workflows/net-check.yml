@@ -5,6 +5,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sS -o /dev/null -w "%{http_code} %{ssl_verify_result}\n" -m 30 "https://nra.bg/wps/portal/nra/nachalo" || echo "curl exit $?"
-          curl -sSv -o /dev/null -m 30 "https://nra.bg/" 2>&1 | grep -E "SSL|certificate|Connected|HTTP/|error|issuer" | head -20 || true
-          node -e "fetch('https://nra.bg/').then(r=>console.log('node', r.status)).catch(e=>console.log('node error', e.cause?.code, e.cause?.message))"
+          R=$(curl -sS -o /dev/null -w "%{http_code} ssl=%{ssl_verify_result} ip=%{remote_ip}" -m 30 "https://nra.bg/wps/portal/nra/nachalo" 2>&1 | tr '\n' ' '); echo "::notice title=curl::$R"
+          R=$(curl -sSkv -o /dev/null -m 30 "https://nra.bg/" 2>&1 | grep -E "issuer|expire|SSL certificate|HTTP/" | tr '\n' ' '); echo "::notice title=curl-v::$R"
+          R=$(node -e "fetch('https://nra.bg/').then(r=>console.log('status', r.status)).catch(e=>console.log('error', e.cause?.code, e.cause?.message))"); echo "::notice title=node::$R"
