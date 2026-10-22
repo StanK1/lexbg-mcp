@@ -1,0 +1,10 @@
+name: Net check (temporary)
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -sS -o /dev/null -w "%{http_code} %{ssl_verify_result}\n" -m 30 "https://nra.bg/wps/portal/nra/nachalo" || echo "curl exit $?"
+          curl -sSv -o /dev/null -m 30 "https://nra.bg/" 2>&1 | grep -E "SSL|certificate|Connected|HTTP/|error|issuer" | head -20 || true
+          node -e "fetch('https://nra.bg/').then(r=>console.log('node', r.status)).catch(e=>console.log('node error', e.cause?.code, e.cause?.message))"
