@@ -21,6 +21,8 @@ export interface ParsedProvision {
   partKey: string;
   partTitle?: string;
   chapter?: string;
+  /** The enclosing "Глава ..." heading (chapter above any раздел), when there is one. */
+  glava?: string;
   label: string;
   text: string;
 }
@@ -86,6 +88,8 @@ export function parseBulgarianAct(lines: string[]): ParsedProvision[] {
   let partKey = 'main';
   let partTitle: string | undefined;
   let chapter: string | undefined;
+  let glava: string | undefined;
+  let headingIsGlava = false;
   let awaitingSubtitle = false;
   // Amending acts are made of § units; a line like "Чл. 52б. ..." inside them is quoted
   // new text being inserted into the amended law, not a unit of the act itself.
@@ -113,6 +117,7 @@ export function parseBulgarianAct(lines: string[]): ParsedProvision[] {
         partKey: finalPartKey,
         partTitle: current.partTitle,
         chapter: current.chapter,
+        glava: current.glava,
         label: current.label,
         text,
       });
@@ -130,6 +135,7 @@ export function parseBulgarianAct(lines: string[]): ParsedProvision[] {
       partKey = n === 1 ? partCode : `${partCode}#${n}`;
       partTitle = line;
       chapter = undefined;
+      glava = undefined;
       awaitingSubtitle = false;
       continue;
     }
@@ -137,12 +143,17 @@ export function parseBulgarianAct(lines: string[]): ParsedProvision[] {
     if (isChapterHeading(line)) {
       flush();
       chapter = line;
+      const first = line.split(/\s+/)[0].toLowerCase();
+      headingIsGlava = first === 'глава';
+      if (headingIsGlava) glava = line;
+      else if (first === 'част') glava = undefined;
       awaitingSubtitle = true;
       continue;
     }
 
     if (awaitingSubtitle && isSubtitle(line)) {
       chapter = `${chapter} — ${line}`;
+      if (headingIsGlava) glava = chapter;
       awaitingSubtitle = false;
       continue;
     }
@@ -154,7 +165,7 @@ export function parseBulgarianAct(lines: string[]): ParsedProvision[] {
       flush();
       const num = art[1].toLowerCase();
       current = {
-        kind: 'art', num, part, partKey, partTitle, chapter,
+        kind: 'art', num, part, partKey, partTitle, chapter, glava,
         label: makeLabel('art', num, part), lines: [line],
       };
       continue;
@@ -167,7 +178,7 @@ export function parseBulgarianAct(lines: string[]): ParsedProvision[] {
       flush();
       const num = par[1].toLowerCase();
       current = {
-        kind: 'par', num, part, partKey, partTitle, chapter,
+        kind: 'par', num, part, partKey, partTitle, chapter, glava,
         label: makeLabel('par', num, part), lines: [line],
       };
       continue;

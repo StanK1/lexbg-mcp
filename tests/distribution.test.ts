@@ -12,6 +12,7 @@ import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { SCHEMA_VERSION } from '../src/db.js';
 
 const ROOT = path.resolve(__dirname, '..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lexbg-dist-'));
@@ -25,7 +26,7 @@ function publish(db: Buffer, builtAt: string, corruptGz = false) {
   const gz = zlib.gzipSync(db);
   files.set('/lexbg.db.gz', corruptGz ? Buffer.concat([gz, Buffer.from('x')]) : gz);
   files.set('/lexbg-manifest.json', Buffer.from(JSON.stringify({
-    format: 1, schema_version: '1', built_at: builtAt, sha256: sha(db), gz_sha256: sha(gz), gz_bytes: gz.length,
+    format: 1, schema_version: SCHEMA_VERSION, built_at: builtAt, sha256: sha(db), gz_sha256: sha(gz), gz_bytes: gz.length,
   })));
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "lexbg",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "LexBG — open-source MCP server for Bulgarian legal & compliance research: laws, amendments, EU links and compliance topic packs. Runs fully locally on SQLite.",
   "type": "module",
   "license": "MIT",
@@ -18,6 +18,7 @@
     "dev": "tsx src/index.ts",
     "fetch:parliament": "tsx scripts/fetch-parliament.ts",
     "fetch:eurlex": "tsx scripts/fetch-eurlex.ts",
+    "fetch:agency": "tsx scripts/fetch-agency.ts",
     "build:db": "tsx scripts/build-db.ts",
     "coverage": "tsx scripts/coverage.ts",
     "eval": "tsx scripts/eval.ts",
@@ -50,6 +51,7 @@
     "@types/node": "^22.18.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
+    "unpdf": "^1.8.1",
     "vitest": "^5.0.5"
   },
   "files": [

@@ -17,13 +17,17 @@ LexBG is an MCP server with verbatim Bulgarian and EU legal texts, amendment his
 ## Method
 
 1. **Orient.** If unsure what is covered, call `about` or `list_laws`. Note each law's `text_status`:
-   - `consolidated` — current text up to its date;
+   - `compiled` — current text built by LexBG from the original act plus every amending act (not an official consolidation); changes are marked in the text, e.g. `(изм. – ДВ, бр. 72 от 2024 г., в сила от 6.07.2024 г.)`;
+   - `consolidated` — current text imported from an institution, up to its date;
    - `original` — the act as first adopted; **later amendments are not applied**;
    - `missing` — no text; only the amendment history is available.
 2. **Find.** Use `search_law` with Bulgarian legal vocabulary. Try two or three phrasings ("съхраняване на счетоводна информация", "срок за съхранение"), and narrow with `law` or `topic`. For broad business questions start with `compliance_checklist` (build the profile from what the user said; ask if a key fact is missing) or `get_topic`.
 3. **Read.** Open every provision you will rely on with `get_provision`; use `paragraph` / `point` for the exact алинея / точка. Quote the operative sentence verbatim.
-4. **Check currency.** Call `what_changed` for each law you rely on — with `article` for the specific provision. `get_provision` also lists `possible_later_changes` that mention the article. If the text is `original` and amendments exist, say the wording may be outdated and summarise what the amendments change.
-5. **Verify citations.** Run `validate_citation` on any citation you did not just retrieve, including citations the user gave you.
+4. **Check currency.**
+   - `compiled`: read `provision_warning` and `not_applied` in `get_provision` — changes LexBG could not apply automatically, or that take effect later. If there are any, say so and quote the instruction. `amendment_history` shows what changed and when.
+   - `original`: call `what_changed` (with `article`) and `possible_later_changes`; say the wording may be outdated and summarise what the amendments change.
+   - Use `in_force` from `what_changed` for when a change applies.
+5. **Verify citations.** Run `validate_citation` on any citation you did not just retrieve, including citations the user gave you. It also reports repealed provisions (`repealed: true`) — never cite those as current.
 6. **EU layer.** For laws implementing EU law, `eu_links` shows the directive or regulation behind them.
 
 ## Answer format
@@ -35,7 +39,7 @@ LexBG is an MCP server with verbatim Bulgarian and EU legal texts, amendment his
 ## Rules
 
 - **Never invent** article numbers, thresholds, amounts or deadlines. If LexBG has no text for a law, say so and point to the State Gazette or the responsible institution.
-- Never present an `original` text as current law.
+- Never present an `original` text as current law. Call a `compiled` text "the current text as compiled by LexBG", not the official consolidated text.
 - Adoption dates are not entry-into-force dates — the act's final provisions decide.
 - `compliance_checklist` and topic packs show **where to look**, not whether an obligation applies; thresholds and exceptions must be read in the text.
 - End substantive answers with: research only, not legal advice — verify in Държавен вестник or with a qualified professional (адвокат, счетоводител).

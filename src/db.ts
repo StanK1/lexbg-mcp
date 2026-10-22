@@ -14,7 +14,7 @@ function sqlite(): typeof import('node:sqlite') {
   return require('node:sqlite') as typeof import('node:sqlite');
 }
 
-export const SCHEMA_VERSION = '1';
+export const SCHEMA_VERSION = '2';
 
 export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS meta (
@@ -29,10 +29,11 @@ CREATE TABLE IF NOT EXISTS laws (
   short TEXT NOT NULL,
   title TEXT NOT NULL,
   topics TEXT NOT NULL DEFAULT '[]',
-  -- consolidated: current text imported from an official consolidated publication
+  -- consolidated: current text imported from a consolidated publication (data/manual)
+  -- compiled:     LexBG applied the amending acts to the original text itself (see provision_changes)
   -- original:     the act as originally promulgated (later amendments NOT applied)
   -- missing:      no text yet; amendments are still tracked
-  text_status TEXT NOT NULL CHECK (text_status IN ('consolidated', 'original', 'missing')),
+  text_status TEXT NOT NULL CHECK (text_status IN ('consolidated', 'compiled', 'original', 'missing')),
   source_kind TEXT,
   source_url TEXT,
   source_note TEXT,
@@ -46,7 +47,16 @@ CREATE TABLE IF NOT EXISTS laws (
   amendments_total INTEGER NOT NULL DEFAULT 0,
   amendments_after_text INTEGER NOT NULL DEFAULT 0,
   last_amended TEXT,
-  provision_count INTEGER NOT NULL DEFAULT 0
+  provision_count INTEGER NOT NULL DEFAULT 0,
+  -- compiled texts: latest State Gazette applied, instruction counts, and gaps in the catalogue
+  compiled_through TEXT,
+  compile_applied INTEGER NOT NULL DEFAULT 0,
+  compile_failed INTEGER NOT NULL DEFAULT 0,
+  compile_pending INTEGER NOT NULL DEFAULT 0,
+  -- JSON: gazette issues listed as amendments in later acts but missing from the catalogue
+  compile_missing TEXT NOT NULL DEFAULT '[]',
+  -- JSON: listed issues whose acts only mention the law (temporary rules, no textual change)
+  compile_mentioned TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS provisions (
@@ -103,9 +113,33 @@ CREATE TABLE IF NOT EXISTS amendments (
   law_id TEXT NOT NULL REFERENCES laws(id),
   mode TEXT NOT NULL CHECK (mode IN ('direct', 'indirect', 'repeal')),
   section_ords TEXT NOT NULL DEFAULT '[]',
+  -- entry into force of this act's changes to the law (ISO date; estimated when tied to publication)
+  in_force TEXT,
   PRIMARY KEY (act_id, law_id)
 );
 CREATE INDEX IF NOT EXISTS idx_amendments_law ON amendments(law_id);
+
+-- For compiled texts: every amending instruction, per provision, and what LexBG did with it.
+--   applied: the text was changed        skipped: no textual change (e.g. amends another act)
+--   failed:  not applied (not understood / target not found)  pending: takes effect later
+CREATE TABLE IF NOT EXISTS provision_changes (
+  id INTEGER PRIMARY KEY,
+  law_id TEXT NOT NULL REFERENCES laws(id),
+  -- 'art' / 'par' + num + part identify the provision; NULL when not tied to one
+  kind TEXT,
+  num TEXT,
+  part TEXT,
+  act_id INTEGER NOT NULL REFERENCES acts(act_id),
+  state_gazette TEXT,
+  section TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('applied', 'skipped', 'failed', 'pending')),
+  note TEXT,
+  instruction TEXT NOT NULL,
+  in_force TEXT,
+  in_force_estimated INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_provision_changes ON provision_changes(law_id, kind, num);
 
 CREATE TABLE IF NOT EXISTS eu_refs (
   provision_id INTEGER NOT NULL REFERENCES provisions(id),

@@ -21,6 +21,10 @@ import {
   baseTitleMatch, directTarget, indirectTarget, isAmendingTitle, repealTarget,
 } from '../src/amendments.js';
 import { writeCoverageReport } from '../src/coverage.js';
+import { compileLaw, issueOf, type AmendingAct, type CompileResult } from '../src/consolidate/apply.js';
+import { parseInForce, resolveWhen, whenFor } from '../src/consolidate/in-force.js';
+import { makeLabel } from '../src/text/parse-bg.js';
+import { compareIssues, headerIssues, latestIssue } from '../src/text/consolidated.js';
 import { argValue, paths } from './lib/paths.js';
 
 interface RawAct {
@@ -51,6 +55,9 @@ interface ManualMeta {
   current_as_of?: string;
   retrieved_at?: string;
   note?: string;
+  institution?: string;
+  /** Last State Gazette issue included, e.g. "ДВ, бр. 72 от 2024 г." (read from the text header if absent). */
+  through_gazette?: string;
 }
 
 const toDate = (v: unknown): string | null => {
@@ -104,6 +111,41 @@ function loadManual(lawId: string): { provisions: ParsedProvision[]; meta: Manua
   return null;
 }
 
+/**
+ * Compile the current text of a law from its original and the amending acts (LexBG's own
+ * consolidation). Returns null when there is nothing to apply.
+ */
+type Link = { act: ActRecord; mode: 'direct' | 'indirect' | 'repeal'; ords: number[] };
+
+function compileFromActs(law: LawEntry, baseProvisions: ParsedProvision[], relevant: Link[], acts: ActRecord[], coveredUpTo?: string): { result: CompileResult; inForce: Map<number, string> } | null {
+  if (!relevant.length) return null;
+  const genitives = [law.genitive, ...(law.genitives ?? [])];
+  const inForce = new Map<number, string>();
+  const amending: AmendingAct[] = relevant.map(({ act, mode, ords }) => {
+    const sections = act.sections.filter(s => (mode === 'indirect' ? ords.includes(s.ord) : s.part === 'main'));
+    const inf = parseInForce(act.sections.filter(s => /влиза(?:т)?\s+в\s+сила/u.test(s.text)).map(s => s.text));
+    const dates = sections.map(s => {
+      const r = resolveWhen(whenFor(inf, s.label.match(/§\s*(\d+[а-я]?)/u)?.[1] ?? null), act.date);
+      return r.date ? `${r.date}${r.estimated ? ' (estimated)' : ''}` : null;
+    }).filter(Boolean) as string[];
+    if (dates.length) inForce.set(act.id, [...new Set(dates)].sort().join(', '));
+    return { actId: act.id, title: act.title, adopted: act.date, stateGazette: act.gazette, mode, sections: sections.map(s => ({ label: s.label, text: s.text })), inForce: inf };
+  });
+  const nameRe = new RegExp(genitives.map(g => g.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+')).join('|'), 'u');
+  const mentions = (issue: string) => acts
+    .filter(a => issueOf(a.gazette) === issue && a.sections.some(s => nameRe.test(s.text)))
+    .map(a => a.title);
+  const result = compileLaw(
+    baseProvisions.filter(p => p.kind === 'art' || p.kind === 'par').map(p => ({
+      kind: p.kind as 'art' | 'par', num: p.num, part: p.part, partKey: p.partKey, partTitle: p.partTitle,
+      chapter: p.chapter, glava: p.glava, text: p.text,
+    })),
+    // LEXBG_COMPILE_AS_OF=2024-08-31 compiles the text as it stood on that date (for checking against references)
+    amending, genitives, { mentions, coveredUpTo, today: process.env.LEXBG_COMPILE_AS_OF || undefined },
+  );
+  return { result, inForce };
+}
+
 function insertProvisions(db: Db, lawId: string, provisions: ParsedProvision[]): number {
   const ins = db.prepare(`INSERT INTO provisions (law_id, ord, kind, num, part, part_key, part_title, chapter, label, text)
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
@@ -142,6 +184,11 @@ export function buildDatabase(outPath?: string): { out: string; summary: string;
   const insAmend = db.prepare('INSERT OR IGNORE INTO amendments (act_id, law_id, mode, section_ords) VALUES (?, ?, ?, ?)');
 
   const baseActs = new Map<string, ActRecord>();
+  const links = new Map<string, Link[]>();
+  const link = (lawId: string, act: ActRecord, mode: 'direct' | 'indirect' | 'repeal', ords: number[]) => {
+    if (!links.has(lawId)) links.set(lawId, []);
+    if (!links.get(lawId)!.some(l => l.act.id === act.id)) links.get(lawId)!.push({ act, mode, ords });
+  };
   for (const act of acts) {
     insAct.run(act.id, act.title, act.date, act.gazette, act.url, act.sign, isAmendingTitle(act.title) ? 1 : 0, act.sections.length ? 1 : 0);
     for (const s of act.sections) insSec.run(act.id, s.ord, s.label, s.partKey, s.text);
@@ -153,9 +200,9 @@ export function buildDatabase(outPath?: string): { out: string; summary: string;
     }
 
     const direct = directTarget(act.title, reg.laws);
-    if (direct) insAmend.run(act.id, direct.id, 'direct', '[]');
+    if (direct) { insAmend.run(act.id, direct.id, 'direct', '[]'); link(direct.id, act, 'direct', []); }
     const repeal = repealTarget(act.title, reg.laws);
-    if (repeal) insAmend.run(act.id, repeal.id, 'repeal', '[]');
+    if (repeal) { insAmend.run(act.id, repeal.id, 'repeal', '[]'); link(repeal.id, act, 'repeal', []); }
 
     const indirect = new Map<string, number[]>();
     for (const s of act.sections) {
@@ -164,7 +211,7 @@ export function buildDatabase(outPath?: string): { out: string; summary: string;
         indirect.set(target.id, [...(indirect.get(target.id) ?? []), s.ord]);
       }
     }
-    for (const [lawId, ords] of indirect) insAmend.run(act.id, lawId, 'indirect', JSON.stringify(ords));
+    for (const [lawId, ords] of indirect) { insAmend.run(act.id, lawId, 'indirect', JSON.stringify(ords)); link(lawId, act, 'indirect', ords); }
   }
 
   // 2. Bulgarian laws ---------------------------------------------------------------------------
@@ -187,16 +234,86 @@ export function buildDatabase(outPath?: string): { out: string; summary: string;
     let provisions: ParsedProvision[] = [];
     let textDate: string | null = null;
 
+    /** Try LexBG's compilation on top of a base text; returns the compiled provisions or null. */
+    const tryCompile = (baseProvs: ParsedProvision[], relevant: Link[], coveredUpTo?: string): { provisions: ParsedProvision[]; r: CompileResult } | null => {
+      let compiled: ReturnType<typeof compileFromActs> = null;
+      try {
+        compiled = compileFromActs(law, baseProvs, relevant, acts, coveredUpTo);
+      } catch (err) {
+        warn(`${law.short}: compiling the current text failed: ${(err as Error).message}`);
+      }
+      if (!compiled) return null;
+      const upd = db.prepare('UPDATE amendments SET in_force = ? WHERE act_id = ? AND law_id = ?');
+      for (const [actId, date] of compiled.inForce) upd.run(date, actId, law.id);
+      const r = compiled.result;
+      const tried = r.stats.applied + r.stats.failed;
+      // Use the compiled text only when most instructions could be applied and the catalogue is
+      // (nearly) complete — amendments missing from the catalogue cannot be applied.
+      if (!(r.stats.applied > 0 && r.stats.failed / tried <= 0.25 && r.missingFromCatalogue.length <= 2)) {
+        console.log(`  ${law.short}: compiled text NOT used (${r.stats.applied} applied, ${r.stats.failed} failed, ${r.missingFromCatalogue.length} amending act(s) missing from the catalogue)`);
+        return null;
+      }
+      console.log(`  ${law.short}: compiled from ${r.stats.acts} amending acts — ${r.stats.applied} applied, ${r.stats.failed} failed, ${r.stats.skipped} skipped, ${r.stats.pending} pending`
+        + `${r.missingFromCatalogue.length ? `; missing from catalogue: ${r.missingFromCatalogue.join(', ')}` : ''}`);
+      return {
+        r,
+        provisions: r.provisions.map((p, i) => ({
+          ord: i + 1, kind: p.kind, num: p.num, part: p.part, partKey: p.partKey, partTitle: p.partTitle,
+          chapter: p.chapter, glava: p.glava, label: makeLabel(p.kind, p.num, p.part), text: p.text,
+        })),
+      };
+    };
+    const storeCompiled = (r: CompileResult) => {
+      db.prepare(`UPDATE laws SET compiled_through = ?, compile_applied = ?, compile_failed = ?, compile_pending = ?,
+                  compile_missing = ?, compile_mentioned = ? WHERE id = ?`)
+        .run(r.through ?? null, r.stats.applied, r.stats.failed, r.stats.pending,
+          JSON.stringify(r.missingFromCatalogue), JSON.stringify(r.mentionedOnly), law.id);
+      const insChange = db.prepare(`INSERT INTO provision_changes (law_id, kind, num, part, act_id, state_gazette, section, summary,
+                                    status, note, instruction, in_force, in_force_estimated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      for (const c of r.changes) {
+        const [kind, num, part] = c.key ? c.key.split('|') : [null, null, null];
+        insChange.run(law.id, kind, num, part, c.actId, c.gazette, c.section, c.summary, c.status, c.note ?? null,
+          c.instruction, c.inForce ?? null, c.inForceEstimated ? 1 : 0);
+      }
+    };
+    const pfx = (r: CompileResult) => `${r.stats.failed ? `; ${r.stats.failed} instruction(s) could not be applied` : ''}${r.stats.pending ? `; ${r.stats.pending} take effect later` : ''}`;
+
     if (manual) {
       provisions = manual.provisions;
       textDate = toDate(manual.meta.current_as_of) ?? toDate(manual.meta.retrieved_at);
-      insLaw.run(law.id, 'bg', law.short, law.title, JSON.stringify(law.topics), 'consolidated', 'manual',
-        manual.meta.source_url, manual.meta.note ?? null, textDate, base?.id ?? null, base?.date ?? null, base?.gazette ?? null, null, 'in_force');
+      // A consolidated snapshot: apply the amending acts published after the last issue it includes.
+      const through = issueOf(manual.meta.through_gazette ?? null) ?? latestIssue(headerIssues(fs.readFileSync(manual.file, 'utf8')));
+      const later = through
+        ? (links.get(law.id) ?? []).filter(l => l.mode !== 'repeal' && l.act.gazette && compareIssues(issueOf(l.act.gazette)!, through) > 0)
+        : [];
+      const c = later.length ? tryCompile(manual.provisions, later, through ?? undefined) : null;
+      const who = manual.meta.institution ?? 'an official source';
+      if (c) {
+        provisions = c.provisions;
+        textDate = acts.length ? (acts[acts.length - 1].date ?? null) : textDate;
+        insLaw.run(law.id, 'bg', law.short, law.title, JSON.stringify(law.topics), 'compiled', 'manual+lexbg',
+          manual.meta.source_url, `Consolidated text from ${who} (through ${manual.meta.through_gazette ?? through}) with ${c.r.stats.acts} later amending act(s) applied by LexBG${pfx(c.r)}.`,
+          textDate, base?.id ?? null, base?.date ?? null, base?.gazette ?? null, null, 'in_force');
+        storeCompiled(c.r);
+      } else {
+        insLaw.run(law.id, 'bg', law.short, law.title, JSON.stringify(law.topics), 'consolidated', 'manual',
+          manual.meta.source_url, manual.meta.note ?? `Consolidated text from ${who}.`, textDate, base?.id ?? null, base?.date ?? null, base?.gazette ?? null, null, 'in_force');
+      }
     } else if (base) {
       provisions = base.sections;
       textDate = base.date;
-      insLaw.run(law.id, 'bg', law.short, law.title, JSON.stringify(law.topics), 'original', 'parliament.bg',
-        base.url, `Original act as adopted (parliament.bg act ${base.id}).`, null, base.id, base.date, base.gazette, null, 'in_force');
+      const c = tryCompile(base.sections, (links.get(law.id) ?? []).filter(l => l.mode !== 'repeal' && (l.act.date ?? '') > (base.date ?? '')));
+      if (c) {
+        provisions = c.provisions;
+        textDate = acts.length ? (acts[acts.length - 1].date ?? null) : null;
+        insLaw.run(law.id, 'bg', law.short, law.title, JSON.stringify(law.topics), 'compiled', 'lexbg-compiled',
+          base.url, `Original act (${base.gazette ?? `parliament.bg act ${base.id}`}) with ${c.r.stats.acts} amending act(s) applied by LexBG through ${c.r.through ?? '–'}${pfx(c.r)}.`,
+          textDate, base.id, base.date, base.gazette, null, 'in_force');
+        storeCompiled(c.r);
+      } else {
+        insLaw.run(law.id, 'bg', law.short, law.title, JSON.stringify(law.topics), 'original', 'parliament.bg',
+          base.url, `Original act as adopted (parliament.bg act ${base.id}).`, null, base.id, base.date, base.gazette, null, 'in_force');
+      }
     } else {
       insLaw.run(law.id, 'bg', law.short, law.title, JSON.stringify(law.topics), 'missing', null,
         null, null, null, null, null, null, null, 'in_force');

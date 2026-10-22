@@ -51,7 +51,7 @@ npm run build:db
 npm run coverage
 ```
 
-`coverage` prints one line per law: `original` = text as first adopted, `missing` = no text yet, plus how many amendments are not applied. Your first goal is to turn the laws you care about into `consolidated` — see [DATA_SOURCES.md](../DATA_SOURCES.md#adding-a-consolidated-text).
+`coverage` prints one line per law: `compiled` = current text built by LexBG (with how many amending instructions applied), `original` = text as first adopted, `missing` = no text yet. For a `missing` law, add a starting text from an institution — see [DATA_SOURCES.md](../DATA_SOURCES.md#adding-a-consolidated-text).
 
 ## 5. Check that the server starts
 
@@ -102,4 +102,4 @@ Then use `what_changed` with `since` = the date of your consolidated texts to se
 | Claude Desktop shows the server as failed | Check the path in the config, use an absolute path to `node`, and look at the MCP log in Settings → Developer. |
 | `fetch:parliament` prints HTTP errors for some acts | Re-run the command later; only the failed acts are retried. |
 | Search finds nothing for a law | `npm run coverage` — the law's text is probably `missing`. |
-| Results warn "later amending act(s) are NOT applied" | Expected for `original` texts. Add a consolidated text or read the changes with `what_changed`. |
+| Results warn "later amending act(s) are NOT applied" | Expected for `original` texts (LexBG could not compile enough of the amendments). Read the changes with `what_changed`. |

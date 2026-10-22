@@ -66,16 +66,16 @@ h1{font:500 30px/1.32 var(--body);margin-top:30px;max-width:560px;text-wrap:bala
 <div class="wrap">
   <div>
     <div class="mark"><div class="sect">§</div><span>Lex<b>BG</b></span></div>
-    <h1>Bulgarian law for AI assistants — verbatim, cited, and honest about what is current.</h1>
-    <p class="sub">An open-source MCP server: 2,000+ acts from parliament.bg, 17 EU acts, amendment history and compliance maps. Runs locally.</p>
+    <h1>Bulgarian law for AI assistants — current, verbatim, cited.</h1>
+    <p class="sub">An open-source MCP server that compiles the current text of a law from every amending act — 2,000+ acts from parliament.bg, 17 EU acts, compliance maps. Runs locally.</p>
     <div class="install"><span>$</span> npx -y …/lexbg.tgz <em style="font-style:normal;font-family:var(--body);color:var(--muted)">· one line in Claude Desktop</em></div>
   </div>
   <div class="card">
     <div class="cite">чл. 12, ал. 1 ЗСч <small>Закон за счетоводството</small></div>
     <p class="quote">Счетоводната информация се съхранява … в следните срокове: 1. <mark>ведомости за заплати – 50 години</mark>, считано от 1 януари на отчетния период, следващ …</p>
     <div class="foot">
-      <span class="chip orig"><i></i>Original text · 25 later amendments not applied</span>
-      <span class="src">ДВ, бр. 95 от 2015 г. · parliament.bg · what_changed: no amendment mentions чл. 12</span>
+      <span class="chip cons"><i></i>Current text · compiled from 27 amending acts</span>
+      <span class="src">ЗСч compiled through ДВ, бр. 67 от 2026 г. · чл. 12 unchanged since 2015</span>
     </div>
   </div>
 </div>`;
@@ -187,7 +187,7 @@ blockquote .c{display:block;margin-top:8px;font:500 14px/1 var(--mono);color:var
     <h4>50 години — ведомостите за заплати се пазят 50 години от 1 януари на следващия отчетен период.</h4>
     <blockquote>„Счетоводната информация се съхранява … в следните срокове: 1. ведомости за заплати – 50 години, считано от 1 януари на отчетния период, следващ отчетния период, за който се отнасят“<span class="c">чл. 12, ал. 1, т. 1 ЗСч</span></blockquote>
     <p>Счетоводните регистри и финансовите отчети се пазят 10 години (т. 2), а останалите носители — три години (т. 3).</p>
-    <div class="row"><span class="chip orig"><i></i>Original text (ДВ 95/2015) · 25 later amendments not applied</span><span class="chip cons"><i></i>No later amendment mentions чл. 12</span></div>
+    <div class="row"><span class="chip cons"><i></i>Current text compiled through ДВ 67/2026</span><span class="chip cons"><i></i>чл. 12 unchanged since 2015</span></div>
     <p class="note">Research only, not legal advice — verify in Държавен вестник or with an accountant.</p>
   </div>
 </div>`;
@@ -199,7 +199,7 @@ const shots = [
   ['example', example, 1280, 660],
 ];
 
-const browser = await chromium.launch({ executablePath: process.env.CHROME ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const browser = await chromium.launch({ executablePath: process.env.CHROME ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--headless=new'] });
 const page = await browser.newPage({ deviceScaleFactor: 2 });
 for (const [name, tpl, w, h] of shots) {
   for (const [mode, t] of Object.entries(THEMES)) {

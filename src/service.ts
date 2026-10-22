@@ -99,13 +99,19 @@ export class LexBG {
       description: 'Bulgarian legal & compliance research server: laws, amendment history, EU links and compliance topic packs.',
       built_at: getMeta(this.db, 'built_at') ?? null,
       latest_act_in_catalogue: getMeta(this.db, 'latest_act_date') || null,
-      bulgarian_laws: { tracked: bg.length, consolidated: n('consolidated'), original_only: n('original'), missing: n('missing') },
+      bulgarian_laws: { tracked: bg.length, consolidated: n('consolidated'), compiled_by_lexbg: n('compiled'), original_only: n('original'), missing: n('missing') },
+      text_status_meaning: {
+        consolidated: 'current text imported from a consolidated publication',
+        compiled: 'current text compiled by LexBG: the original act with the amending acts applied automatically; unapplied instructions are listed per provision',
+        original: 'the act as first adopted; later amendments not applied',
+        missing: 'no text; amendment history only',
+      },
       eu_acts: { tracked: eu.length, with_text: eu.filter(c => c.text_status !== 'missing').length },
       provisions: count('SELECT COUNT(*) AS n FROM provisions'),
       promulgated_acts: count('SELECT COUNT(*) AS n FROM acts'),
       amendment_links: count('SELECT COUNT(*) AS n FROM amendments'),
       topics: this.reg.topics.map(t => ({ id: t.id, title: t.title, title_en: t.title_en })),
-      sources: ['parliament.bg (promulgated acts)', 'EUR-Lex (EU acts)', 'official consolidated texts imported locally (data/manual)'],
+      sources: ['parliament.bg (promulgated acts)', 'EUR-Lex (EU acts)', 'LexBG compilation of the amending acts (text_status "compiled")', 'consolidated texts imported locally (data/manual)'],
       disclaimer: DISCLAIMER,
     };
   }
@@ -336,6 +342,7 @@ export class LexBG {
     if (point) excerpt = extractPoint(excerpt ?? p.text, point);
 
     const euRefs = this.db.prepare('SELECT DISTINCT celex, citation FROM eu_refs WHERE provision_id = ?').all(p.id) as Array<{ celex: string; citation: string }>;
+    const compiled = law.text_status === 'compiled' ? this.compiledHistory(lawId, p) : undefined;
 
     return {
       found: true,
@@ -344,16 +351,54 @@ export class LexBG {
       citation: this.citationFor(p, law.short, { alineya, point }),
       chapter: p.chapter ?? undefined,
       part: p.part_title ?? undefined,
+      repealed: isRepealedText(p.text) || undefined,
       text: p.text,
       requested_excerpt: alineya || point ? excerpt ?? `(ал. ${alineya ?? '-'} / т. ${point ?? '-'} not found in this provision; full text above)` : undefined,
+      provision_warning: compiled?.warning,
+      amendment_history: compiled?.history,
+      not_applied: compiled?.notApplied,
       eu_references: euRefs.map(e => ({ ...e, known_as: this.reg.eu.find(x => x.celex === e.celex)?.short })),
-      possible_later_changes: law.kind === 'bg' && p.kind === 'art' ? this.changesMentioning(lawId, p.num, this.textDate(law)) : undefined,
+      possible_later_changes: law.kind === 'bg' && p.kind === 'art' && law.text_status !== 'compiled' ? this.changesMentioning(lawId, p.num, this.textDate(law)) : undefined,
       disclaimer: DISCLAIMER,
     };
   }
 
+  /** For compiled texts: what LexBG applied to this provision, and what it could not. */
+  private compiledHistory(lawId: string, p: ProvisionRow) {
+    const rows = this.db.prepare(`SELECT c.state_gazette, c.section, c.summary, c.status, c.note, c.instruction, c.in_force,
+                                         c.in_force_estimated, a.title AS act
+                                    FROM provision_changes c JOIN acts a ON a.act_id = c.act_id
+                                   WHERE c.law_id = ? AND c.kind = ? AND c.num = ? AND c.part = ?
+                                   ORDER BY c.id`).all(lawId, p.kind, p.num, p.part) as Array<{
+      state_gazette: string | null; section: string; summary: string; status: string; note: string | null;
+      instruction: string; in_force: string | null; in_force_estimated: number; act: string;
+    }>;
+    const history = rows.filter(r => r.status === 'applied').map(r => ({
+      state_gazette: r.state_gazette ?? undefined,
+      act: r.act,
+      section: r.section,
+      change: r.summary,
+      in_force: r.in_force ? `${r.in_force}${r.in_force_estimated ? ' (estimated)' : ''}` : undefined,
+    }));
+    const notApplied = rows.filter(r => r.status === 'failed' || r.status === 'pending').map(r => ({
+      status: r.status === 'pending' ? 'takes effect later' : 'could not be applied automatically',
+      state_gazette: r.state_gazette ?? undefined,
+      act: r.act,
+      section: r.section,
+      instruction: clip(r.instruction, 900),
+      reason: r.note ?? undefined,
+      in_force: r.in_force ?? undefined,
+    }));
+    const failed = rows.filter(r => r.status === 'failed').length;
+    const pending = rows.filter(r => r.status === 'pending').length;
+    const warning = failed
+      ? `${failed} amending instruction(s) for this provision could not be applied automatically, so the text above may not be current. Read "not_applied" and tell the user.`
+      : pending ? `${pending} change(s) to this provision take effect later (see "not_applied").` : undefined;
+    return { history: history.length ? history.slice(-15) : undefined, notApplied: notApplied.length ? notApplied : undefined, warning };
+  }
+
   private textDate(law: LawRow): string | null {
-    return law.text_status === 'consolidated' ? law.retrieved_at : law.adopted;
+    return law.text_status === 'consolidated' || law.text_status === 'compiled' ? law.retrieved_at : law.adopted;
   }
 
   /** Sections of amending acts (adopted after `since`) that mention "чл. N" of this law. */
@@ -408,10 +453,14 @@ export class LexBG {
     if (c.alineya) sub = extractParagraph(p.text, c.alineya);
     if (sub && c.point) sub = extractPoint(sub, c.point);
     const valid = Boolean(sub);
+    const repealed = isRepealedText(p.text) || (sub ? /^(?:\(\d+[а-я]?\)|\d+[а-я]?\.|[а-я]\))\s*\((?:[^()]*,\s*)?[Оо]тм\.[^()]*\)\s*$/u.test(sub.trim()) : false);
     return {
       valid,
+      repealed: repealed || undefined,
       normalized: this.citationFor(p, law.short, { alineya: c.alineya, point: c.point }),
-      reason: valid ? 'Provision found in the stored text.' : `${p.label} exists, but ${c.alineya ? `ал. ${c.alineya}` : ''}${c.point ? ` т. ${c.point}` : ''} was not found in it.`,
+      reason: !valid
+        ? `${p.label} exists, but ${c.alineya ? `ал. ${c.alineya}` : ''}${c.point ? ` т. ${c.point}` : ''} was not found in it.`
+        : repealed ? 'The provision exists but has been REPEALED (отменена) — do not cite it as current law.' : 'Provision found in the stored text.',
       text: valid ? clip(sub!, 1500) : undefined,
       law: this.lawSummary(law),
     };
@@ -434,12 +483,21 @@ export class LexBG {
                            WHERE m.law_id = ? AND a.adopted < ?`).get(lawId, law.adopted) as { n: number }).n
       : 0;
     const until = opts.until ?? null;
-    const acts = this.db.prepare(`SELECT a.act_id, a.title, a.adopted, a.state_gazette, a.url, m.mode, m.section_ords
+    const acts = this.db.prepare(`SELECT a.act_id, a.title, a.adopted, a.state_gazette, a.url, m.mode, m.section_ords, m.in_force
                                     FROM amendments m JOIN acts a ON a.act_id = m.act_id
                                    WHERE m.law_id = ?
                                      AND (? IS NULL OR a.adopted >= ?)
                                      AND (? IS NULL OR a.adopted <= ?)
-                                   ORDER BY a.adopted DESC`).all(lawId, since, since, until, until) as Array<{ act_id: number; title: string; adopted: string; state_gazette: string | null; url: string; mode: string; section_ords: string }>;
+                                   ORDER BY a.adopted DESC`).all(lawId, since, since, until, until) as Array<{ act_id: number; title: string; adopted: string; state_gazette: string | null; url: string; mode: string; section_ords: string; in_force: string | null }>;
+    const applied = law.text_status === 'compiled'
+      ? this.db.prepare(`SELECT act_id, status, COUNT(*) AS n FROM provision_changes WHERE law_id = ? GROUP BY act_id, status`).all(lawId) as Array<{ act_id: number; status: string; n: number }>
+      : [];
+    const lexbgFor = (actId: number) => {
+      const r = applied.filter(x => x.act_id === actId);
+      if (!r.length) return undefined;
+      const n = (s: string) => r.find(x => x.status === s)?.n ?? 0;
+      return { applied: n('applied'), not_applied: n('failed'), takes_effect_later: n('pending'), no_text_change: n('skipped') };
+    };
 
     // "38" / "чл. 38" → mentions of чл. 38 of THIS law; "§ 1" → mentions of § 1 (not the section's own number).
     const own = this.ownNames(lawId);
@@ -457,6 +515,8 @@ export class LexBG {
         adopted: a.adopted,
         state_gazette: a.state_gazette ?? undefined,
         how: a.mode === 'direct' ? 'amending act for this law' : a.mode === 'repeal' ? 'repeals this law' : 'amended by a provision inside another act',
+        in_force: a.in_force ?? undefined,
+        lexbg_compiled_text: lexbgFor(a.act_id),
         url: a.url,
         sections: opts.include_text === false ? sections.map(s => s.label) : sections.slice(0, 12).map(s => ({ section: s.label, text: clip(s.text, 1200) })),
         more_sections: sections.length > 12 ? sections.length - 12 : undefined,
@@ -472,7 +532,7 @@ export class LexBG {
         ? `${olderCount} earlier act(s) amended a previous law with the same title (before ${law.adopted}). Pass since: "2000-01-01" to include them.`
         : undefined,
       changes: items,
-      note: 'Dates are adoption dates by the National Assembly; publication (ДВ) follows within days and entry into force may differ (see each act\'s final provisions). Amendments are detected from parliament.bg act titles and from "В Закона за ..." clauses inside other acts.',
+      note: '"adopted" is the date the National Assembly adopted the act; "in_force" comes from the act\'s final provisions (estimated as adoption + about a week when it depends on the publication date). Amendments are detected from parliament.bg act titles and from "В Закона за ..." clauses inside other acts.',
       disclaimer: DISCLAIMER,
     };
   }
@@ -639,8 +699,13 @@ function matchCondition(c: Condition, p: Profile): string | null {
   return null;
 }
 
+/** "Чл. 43. (Отм. – ДВ, бр. 72 от 2024 г.)" — a repealed provision kept in a compiled text. */
+function isRepealedText(text: string): boolean {
+  return /^(?:Чл\.|§)\s*\d+[а-я]*\.\s*\((?:[^()]*,\s*)?[Оо]тм\.[^()]*\)\s*$/u.test(text.trim());
+}
+
 const AMENDS_OTHER_LAW =
-  /^(?:§|Чл\.)\s*\d+[а-я]?\.\s*(?:\(\d+\)\s*)?В\s+(?:[^;()]{0,120}?\s+от\s+)?(?:Закона|Кодекса|Търговския|Данъчно|Изборния|Наказателния|Граждански|Административнопроцесуалния|Конституцията|Семейния|Наказателно)/u;
+  /^(?:§|Чл\.)\s*\d+[а-я]?\s*\.\s*(?:\(\d+\)\s*)?В\s+(?:[^;()]{0,120}?\s+от\s+)?(?:Закона|Кодекса|Търговския|Данъчно|Изборния|Наказателния|Граждански|Административнопроцесуалния|Конституцията|Семейния|Наказателно)/u;
 
 /** Quoted term followed by a defining verb: „Действителен собственик“ е ..., 2. „Група предприятия“ са ... */
 const DEFINITION = /„([^“]{2,120})“\s*(?:е|са|означава|се разбира|има значение)(?![\p{L}])/gu;

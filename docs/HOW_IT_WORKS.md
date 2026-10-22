@@ -36,7 +36,7 @@ sequenceDiagram
   C->>L: compliance_checklist(entity_type=EOOD, has_employees, sells_online)
   L-->>C: topics + laws + first provisions (accounting, VAT, employment, consumers…)
   C->>L: search_law("съхраняване на счетоводна информация", law=ЗСч)
-  L-->>C: чл. 12 ЗСч (+ warning: original text, N amendments not applied)
+  L-->>C: чл. 12 ЗСч (+ text status "compiled", amendment history, anything not applied)
   C->>L: get_provision(ЗСч, чл. 12, ал. 1)
   L-->>C: verbatim text
   C->>L: what_changed(ЗСч, article=чл. 12)

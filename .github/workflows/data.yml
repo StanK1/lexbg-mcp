@@ -42,6 +42,10 @@ jobs:
         continue-on-error: true
         run: node dist/scripts/fetch-eurlex.js
 
+      - name: Fetch consolidated texts from institutions (sources/agency-texts.yml)
+        continue-on-error: true
+        run: node dist/scripts/fetch-agency.js
+
       - name: Save raw downloads
         if: always()
         uses: actions/cache/save@v4

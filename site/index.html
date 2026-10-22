@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Unbounded:wght@500;600;700&display=swap">
 <style>
 /* Layout concept: a law page — a narrow reading column with "provision cards" set off like quoted articles,
-   status chips that carry meaning (current / original / missing), and one data story: the amendment timeline. */
+   status chips that carry meaning (compiled / original / missing), and one data story: the amendment timeline. */
 :root {
   --paper: #F6F7F5; --surface: #FFFFFF; --ink: #16202B; --muted: #56616D; --line: #DCE1DD;
   --accent: #0E7A5A; --accent-soft: #E2F1EA; --amber: #9A5A00; --amber-soft: #FBEFD8; --red: #B3261E; --red-soft: #FBE3E1;
@@ -206,8 +206,8 @@ footer a { color: var(--muted); }
       <div class="cite">чл. 12, ал. 1 ЗСч <small>Закон за счетоводството</small></div>
       <p class="quote">Счетоводната информация се съхранява … в следните срокове: 1. <mark>ведомости за заплати – 50 години</mark>, считано от 1 януари на отчетния период, следващ отчетния период, за който се отнасят;</p>
       <div class="meta">
-        <span class="chip orig"><i></i>Original text · 25 later amendments not applied</span>
-        <span class="chip cons"><i></i>No later amendment mentions чл. 12</span>
+        <span class="chip cons"><i></i>Current text · compiled from 27 amending acts</span>
+        <span class="chip cons"><i></i>чл. 12 unchanged since 2015</span>
         <span class="src">ДВ, бр. 95 от 2015 г. · parliament.bg</span>
       </div>
     </article>
@@ -240,9 +240,9 @@ footer a { color: var(--muted); }
           <p>Provisions come straight from the official text with a Bulgarian-style citation and a source link. A citation checker catches references that don't exist.</p>
         </div>
         <div class="principle">
-          <span class="chip orig" style="font-size:13px"><i></i>original</span>
-          <h3>Honest about what is current</h3>
-          <p>Every law is marked current (consolidated), original (as first adopted, later changes not applied) or missing, and that warning travels with every answer.</p>
+          <span class="chip cons" style="font-size:13px"><i></i>compiled</span>
+          <h3>The current text, built from the amendments</h3>
+          <p>LexBG applies every amending act to the original, in order of entry into force, and marks each change as official consolidations do. Anything it cannot apply is shown on the article it concerns, never guessed.</p>
         </div>
         <div class="principle">
           <span class="glyph">what_changed(ЗСч, чл. 38)</span>
@@ -302,7 +302,7 @@ footer a { color: var(--muted); }
           <h3>50 години — ведомостите за заплати се пазят 50 години от 1 януари на следващия отчетен период.</h3>
           <blockquote>„Счетоводната информация се съхранява … в следните срокове: 1. ведомости за заплати – 50 години, считано от 1 януари на отчетния период, следващ отчетния период, за който се отнасят“<cite>чл. 12, ал. 1, т. 1 ЗСч</cite></blockquote>
           <p>Счетоводните регистри и финансовите отчети се пазят 10 години (т. 2), а останалите носители — три години (т. 3).</p>
-          <div class="row"><span class="chip orig"><i></i>Original text (ДВ 95/2015) · 25 later amendments not applied</span><span class="chip cons"><i></i>No later amendment mentions чл. 12</span></div>
+          <div class="row"><span class="chip cons"><i></i>Current text compiled through ДВ 67/2026</span><span class="chip cons"><i></i>чл. 12 unchanged since 2015</span></div>
           <p class="note">Research only, not legal advice — verify in Държавен вестник or with an accountant.</p>
         </div>
       </div>
@@ -365,13 +365,13 @@ footer a { color: var(--muted); }
         <table>
           <thead><tr><th>Status</th><th>Laws</th><th>What you get</th></tr></thead>
           <tbody>
-            <tr><td><span class="chip orig"><i></i>original</span></td><td>9 — ЗСч, ЗМИП, ЗНФО, ЗПК, ЗПУПС, ЗПФИ, ЗКС, ЗВЕРБ, the whistleblowing act</td><td>Text as adopted plus the full list of later amendments, flagged as possibly outdated</td></tr>
-            <tr><td><span class="chip miss"><i></i>missing</span></td><td>24 — including the Labour Code, the VAT Act, the Commercial Act, the tax laws</td><td>Amendment history only; search says so instead of guessing</td></tr>
+            <tr><td><span class="chip cons"><i></i>compiled</span></td><td>9 — ЗСч, ЗМИП, ЗНФО, ЗПК, ЗПУПС, ЗПФИ, ЗКС, ЗВЕРБ, the whistleblowing act</td><td>Current text built by LexBG: 2,328 of 2,554 amending instructions applied (91 %, all 160 for ЗСч); the rest are shown on their articles</td></tr>
+            <tr><td><span class="chip miss"><i></i>missing</span></td><td>24 — including the Labour Code, the VAT Act, the Commercial Act, the tax laws</td><td>Older than the parliament.bg catalogue: amendment history only until a starting text from an institution is imported; search says so instead of guessing</td></tr>
             <tr><td><span class="chip cons"><i></i>EU acts</span></td><td class="num">17</td><td>Full Bulgarian text as published in the Official Journal</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="lead" style="font-size:16px">Next on the roadmap: current consolidated texts for the core laws from official sources, hybrid search, and a hosted endpoint for trying LexBG without installing anything.</p>
+      <p class="lead" style="font-size:16px">Next on the roadmap: starting texts from public institutions for the older core laws, so they can be compiled too, and hybrid search.</p>
     </div>
   </section>
 </main>

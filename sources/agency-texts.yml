@@ -1,0 +1,28 @@
+# Consolidated texts published by public institutions, used as the starting point for laws
+# whose original act is older than the parliament.bg catalogue (≈ 2009): КТ, ЗДДС, ЗКПО, ЗДДФЛ,
+# ДОПК, КСО, ТЗ, ЗЗЛД, …
+#
+# LexBG reads the "Обн. ДВ … изм. ДВ …" header of the text to find the last State Gazette issue
+# it includes, then applies every amending act published after that issue itself — so the
+# snapshot does not have to be recent, only complete and from an official source.
+#
+#   npm run fetch:agency                 # download + convert every entry below
+#   npm run fetch:agency -- --law kt     # one entry
+#   npm run fetch:agency -- --law kt --file ~/Downloads/kt.pdf --source-url <page> --institution "МТСП"
+#
+# Rules (see DATA_SOURCES.md): only texts published by a public institution (ministry, agency,
+# National Assembly, court). NOT the databases of commercial legal publishers (lex.bg, Ciela,
+# АПИС, Сиела Норма, trudipravo.bg), even when they are free to read.
+#
+# Format:
+#   - law: kt                      # id from sources/laws.yml
+#     url: https://…/kodeks-na-truda.pdf
+#     institution: Министерство на труда и социалната политика
+#     format: pdf                  # pdf | html | txt (detected when omitted)
+texts: []
+
+# Example (Закон за счетоводството, Министерство на финансите, text in force from 6.07.2024).
+# Not enabled because LexBG already compiles ЗСч from its original act; useful to cross-check:
+#   - law: zsch
+#     url: https://minfin.bg/upload/59508/Zakon+za+chetovodstvoto%2C+v+sila+ot+06.07.2024.pdf
+#     institution: Министерство на финансите

@@ -1,6 +1,13 @@
 # Tool reference
 
-LexBG exposes 10 read-only MCP tools and 4 prompts. All tools return JSON. Every result that contains law text also carries the law's `text_status` (`consolidated` / `original` / `missing`) and a plain-language `warning` — pass both on to the user.
+LexBG exposes 10 read-only MCP tools and 4 prompts. All tools return JSON. Every result that contains law text also carries the law's `text_status` and a plain-language `warning` — pass both on to the user.
+
+| `text_status` | Meaning |
+|---|---|
+| `compiled` | Current text built by LexBG: the original act with every amending act applied in order of entry into force. Changes are marked in the text, e.g. `(изм. – ДВ, бр. 72 от 2024 г., в сила от 6.07.2024 г.)`. Not an official consolidation. |
+| `consolidated` | Current text imported from an institution, nothing newer to apply |
+| `original` | The act as first adopted; later amendments not applied |
+| `missing` | No text; amendment history only |
 
 Law names are flexible everywhere: an abbreviation (`ЗСч`, `ЗДДС`), an id (`zsch`), the title or its "Закона за …" form, an English alias (`VAT act`), or an EU short name (`GDPR`, `DORA`). `list_laws` shows them all.
 
@@ -31,8 +38,8 @@ Full-text search over Bulgarian laws and EU acts (Bulgarian text), ranked by how
     "law": "ЗСч", "provision": "Чл. 12", "citation": "чл. 12 ЗСч",
     "chapter": "Раздел III — Съхраняване на счетоводна информация",
     "snippet": "… 12. (1) Счетоводната информация се «съхранява» на хартиен и/или на технически носител …",
-    "matched_terms": "4/4", "text_status": "original",
-    "warning": "Original text (adopted 2015-11-24, ДВ, бр. 95 от 2015 г.). 25 later amending act(s) are NOT applied …"
+    "matched_terms": "4/4", "text_status": "compiled",
+    "warning": "Current text compiled by LexBG: the original (ДВ, бр. 95 от 2015 г.) with the amending acts applied in order of entry into force …"
   }]
 }
 ```
@@ -50,7 +57,14 @@ Verbatim text of one provision.
 | `paragraph` | string? | Алинея number |
 | `point` | string? | Точка number |
 
-Returns `text`, `requested_excerpt` (the алинея/точка), `chapter`, `eu_references` (EU acts cited in it) and `possible_later_changes` — sections of later amending acts that mention this article *of this law* (mentions of the same number in other laws are ignored).
+Returns `text`, `requested_excerpt` (the алинея/точка), `chapter`, `eu_references` (EU acts cited in it) and, for compiled texts:
+
+- `amendment_history` — the changes LexBG applied to this provision (State Gazette, amending act, §, what changed, entry into force);
+- `not_applied` — instructions it could not apply automatically, or that take effect later, with the instruction text and the reason;
+- `provision_warning` — present when `not_applied` contains a failed instruction: the text may not be current;
+- `repealed: true` — the provision has been repealed (`Чл. 43. (Отм. – ДВ, бр. 72 от 2024 г.)`).
+
+For `original` texts it returns `possible_later_changes` instead: sections of later amending acts that mention this article *of this law* (mentions of the same number in other laws are ignored).
 
 ## what_changed
 
@@ -79,7 +93,7 @@ Amendment history of a Bulgarian law from parliament.bg: acts titled as amending
 }
 ```
 
-Dates are adoption dates; entry into force is set by each act's final provisions.
+Each change has `adopted`, `in_force` (from the act's final provisions; "estimated" when it depends on the publication date) and, for compiled laws, `lexbg_compiled_text`: how many of the act's instructions LexBG applied, could not apply, or holds back because they take effect later.
 
 ## validate_citation
 
@@ -87,7 +101,7 @@ Dates are adoption dates; entry into force is set by each act's final provisions
 |---|---|---|
 | `citation` | string | `чл. 6, ал. 1 ЗЗЛД`, `§ 1, т. 5 от ДР на ЗСч`, `art. 6(1) GDPR` |
 
-Returns `valid: true` with the normalised citation and the cited text, `false` with the reason (no such article, алинея or точка), or `null` when the law has no stored text and the citation cannot be checked.
+Returns `valid: true` with the normalised citation and the cited text, `false` with the reason (no such article, алинея or точка), or `null` when the law has no stored text and the citation cannot be checked. `repealed: true` flags a provision that exists but has been repealed.
 
 ## compliance_checklist
 

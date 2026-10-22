@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.png">
-    <img src="docs/assets/hero.png" alt="LexBG — Bulgarian law for AI assistants: verbatim, cited, and honest about what is current" width="100%">
+    <img src="docs/assets/hero.png" alt="LexBG — Bulgarian law for AI assistants: current, verbatim, cited" width="100%">
   </picture>
 </p>
 
@@ -22,7 +22,7 @@
   <a href="#на-български">На български</a>
 </p>
 
-**LexBG** is an open-source [Model Context Protocol](https://modelcontextprotocol.io) server that gives Claude and other AI assistants reliable access to Bulgarian legislation. Answers quote the law word for word, cite it the Bulgarian way (`чл. 12, ал. 1 ЗСч`), show what changed since, and say plainly when a text may not be current.
+**LexBG** is an open-source [Model Context Protocol](https://modelcontextprotocol.io) server that gives Claude and other AI assistants reliable access to Bulgarian legislation. It builds the **current text** of a law itself, by applying every amending act from the State Gazette to the original, and it answers with the law word for word, cited the Bulgarian way (`чл. 12, ал. 1 ЗСч`), with the history of each provision and a plain warning wherever it could not keep up.
 
 It runs on your machine. One line in Claude Desktop installs it; a 6 MB database, rebuilt every week from parliament.bg and EUR-Lex, downloads on first start.
 
@@ -45,14 +45,34 @@ Three principles follow from that:
 | | |
 |---|---|
 | **Verbatim, never paraphrased** | Every provision comes from the official text, with its citation and source link. `validate_citation` catches references that don't exist. |
-| **Honest about currency** | Each law is marked `consolidated` (current text), `original` (as first adopted; later amendments not applied) or `missing` (amendment history only). That status and a plain-language warning travel with every answer. |
+| **Honest about currency** | Each law is marked `compiled` (current text built by LexBG from the amendments), `consolidated` (imported current text), `original` (as first adopted) or `missing` (amendment history only). Any amendment LexBG could not apply is listed on the provision it concerns. |
 | **Changes are first-class** | `what_changed` lists every amending act for a law or a single article, including amendments buried in other laws, with State Gazette references. |
+
+## The current text, compiled from the amendments
+
+Bulgaria has no official, free, machine-readable consolidated legislation: the State Gazette and parliament.bg publish each act as adopted. Free consolidated versions exist only on commercial sites. So LexBG does the consolidation itself:
+
+1. **Read the instructions.** Amending acts follow a fixed drafting style: *„В чл. 38, ал. 9, т. 2 думите „31 март“ се заменят с „30 юни“.“* LexBG parses each instruction into a structured operation: replace, repeal, insert, renumber, wording changes, or sentence edits.
+2. **Apply them in order of entry into force.** The order comes from each act's final provisions, not the order of publication. For example, the euro law was adopted in August 2024, but its changes to the Accounting Act took effect on 1 January 2026, after a later amending act. Changes that take effect in the future are listed but not applied.
+3. **Mark every change the way official consolidations do**, for example `(изм. – ДВ, бр. 72 от 2024 г., в сила от 6.07.2024 г.)`, and keep a per-provision history.
+4. **Never guess.** If an instruction is not understood or its target is not found, the provision keeps its last known text. `get_provision` then shows the instruction it could not apply and a warning. A law gets the `compiled` status only if at least 75 % of its instructions applied and no more than two amending acts are missing from the catalogue.
+
+**Checked against an official text.** The Accounting Act was compiled as of August 2024 and compared with the consolidated version the Ministry of Finance published for that date. Articles 7, 25, 37 and 38 were checked; they are among the most amended in the law, changed by acts from 2016 to 2024. The wording matched, including the amendment notes, with one difference: a comma the official text has after „одит“ in чл. 38, ал. 9, т. 1 is not in the amending instruction itself. A second test went the other way. A 2019 snapshot of the law was imported as if it were an institution's PDF, then LexBG compiled forward from it. The result matched the text compiled from the 2015 original in every article.
+
+| Law | Amending instructions applied | Provisions with an unapplied change |
+|---|---:|---:|
+| ЗСч — Accounting Act | 160 / 160 (100 %) | 0 |
+| ЗМИП — Anti-Money Laundering Act | 523 / 554 (94 %) | 18 |
+| ЗПУПС — Payment Services Act | 242 / 257 (94 %) | 9 |
+| ЗНФО — Independent Financial Audit Act | 371 / 401 (93 %) | 14 |
+| ЗПФИ — Markets in Financial Instruments Act | 754 / 858 (88 %) | 37 |
+| All 9 compiled laws | 2,328 / 2,554 (91 %) | 99 of 1,405 |
 
 ## What you can ask
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/example-dark.png">
-  <img src="docs/assets/example.png" alt="Example: asked how long payroll records must be kept, Claude calls search_law, get_provision and what_changed, quotes чл. 12, ал. 1, т. 1 ЗСч (50 years) and shows that the text is the original version and that no amendment mentions чл. 12" width="100%">
+  <img src="docs/assets/example.png" alt="Example: asked how long payroll records must be kept, Claude calls search_law, get_provision and what_changed, quotes чл. 12, ал. 1, т. 1 ЗСч (50 years) from the current text compiled by LexBG and shows that чл. 12 is unchanged since 2015" width="100%">
 </picture>
 
 | Who | Typical question | What LexBG brings |
@@ -116,9 +136,9 @@ On first start LexBG downloads the weekly database (about 6 MB, checksum-verifie
 | Tool | What it answers |
 |---|---|
 | `search_law` | Full-text search in Bulgarian, ranked, with snippets, citations and a note when the relevant law has no text yet |
-| `get_provision` | Verbatim article, § of the additional/transitional provisions, алинея or точка, plus EU references and later amendments that mention it |
-| `what_changed` | Amendment history of a law, by date and by article, including amendments inside other laws |
-| `validate_citation` | Does `чл. 6, ал. 1 ЗЗЛД` exist, and what does it say? |
+| `get_provision` | Verbatim article, § of the additional/transitional provisions, алинея or точка: its amendment history, any change LexBG could not apply, EU references |
+| `what_changed` | Amendment history of a law, by date and by article, including amendments inside other laws, with entry-into-force dates |
+| `validate_citation` | Does `чл. 6, ал. 1 ЗЗЛД` exist, has it been repealed, and what does it say? |
 | `compliance_checklist` | Business profile in, applicable compliance areas out, with reasons and provisions to read |
 | `get_topic` | One of 18 compliance topics: laws, typical questions, key provisions |
 | `eu_links` | EU acts a law refers to, or Bulgarian provisions that refer to an EU act |
@@ -135,7 +155,7 @@ Four **prompts** package the method as one-click workflows: `legal_research`, `c
 </picture>
 
 - **Sources.** Every act the National Assembly has adopted since about 2005 (parliament.bg), and 17 EU acts in Bulgarian from the Publications Office (GDPR, DORA, the AI Act, NIS2, AMLR, MiCA, PSD2, the VAT Directive and others).
-- **Weekly build.** A GitHub Action fetches new acts, parses them into articles and §, links amendments, runs 57 tests and the search evaluation, and publishes the database. If search quality drops, nothing is published.
+- **Weekly build.** A GitHub Action fetches new acts, parses them into articles and §, links amendments, compiles the current texts, runs 79 tests and the search evaluation, and publishes the database. If search quality drops, nothing is published.
 - **On your machine.** One SQLite file with full-text search. LexBG does not run a model and sends nothing anywhere; your AI client decides when to call it.
 
 More detail, including exactly what the AI sees: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md).
@@ -146,11 +166,11 @@ More detail, including exactly what the AI sees: [docs/HOW_IT_WORKS.md](docs/HOW
 |---|---|
 | Promulgated acts in the catalogue | 2,064 (2005 → present), rebuilt weekly |
 | Amendment links found | 1,157 (81 % inside other laws) |
-| Bulgarian laws tracked | 33 — 9 with original text, 24 with amendment history only |
+| Bulgarian laws tracked | 33. Of these, 9 have a current text compiled by LexBG and 24 have the amendment history only |
 | EU acts with full Bulgarian text | 17 |
 | Compliance topics | 18 |
 
-parliament.bg publishes each act **as adopted**, so for laws adopted since 2005 LexBG has the original text plus the full amendment trail, and for older laws (the Labour Code, the Commercial Act, the VAT Act) only the amendment trail. Current consolidated texts can be added from official sources; see [DATA_SOURCES.md](DATA_SOURCES.md). LexBG never presents an original text as current.
+The parliament.bg catalogue starts around 2009. Laws adopted since then are compiled from their original act. Older laws (the Labour Code, the Commercial Act, the VAT and income tax acts, the social security code) need a starting text. `npm run fetch:agency` imports a consolidated text published by a public institution, reads which State Gazette issues it already includes, and LexBG applies every later amendment on top. See [DATA_SOURCES.md](DATA_SOURCES.md).
 
 ## Search quality
 
@@ -168,6 +188,7 @@ git clone https://github.com/StanK1/lexbg-mcp.git && cd lexbg-mcp
 npm install && npm run build
 npm run fetch:parliament        # all acts (~45 min the first time; resumable)
 npm run fetch:eurlex            # EU acts via the Publications Office API
+npm run fetch:agency            # optional: consolidated texts from institutions (sources/agency-texts.yml)
 npm run build:db && npm run coverage && npm test
 ```
 
@@ -193,9 +214,10 @@ Built with the official TypeScript MCP SDK and Node's built-in SQLite. No native
 
 ## Roadmap
 
-- [ ] Current consolidated texts for the core laws (Labour Code, VAT, corporate and personal income tax, social security, Commercial Act) from official sources
+- [x] Current texts compiled from the amending acts, applied in order of entry into force (v0.4)
+- [ ] Starting texts from public institutions for the laws older than the catalogue (Labour Code, VAT, income taxes, social security, Commercial Act): the importer is ready, and official sources are being collected
+- [ ] Raise the share of applied instructions for the financial-markets laws (currently 88–94 %)
 - [ ] Hybrid search (embeddings next to full-text search), measured with the evaluation
-- [ ] Hosted endpoint for trying LexBG without installing anything
 - [ ] Court decisions and regulator guidance (data protection authority, tax authority)
 - [ ] Benchmark: answers with and without LexBG on 100 Bulgarian compliance questions
 
@@ -216,6 +238,8 @@ Issues and pull requests are welcome — new laws for the registry, parser fixes
 **LexBG** е MCP сървър с отворен код, който дава на Claude и други AI асистенти надежден достъп до българското законодателство. Отговорите цитират закона дословно (`чл. 12, ал. 1 ЗСч`), показват какво се е променило след това и казват ясно, когато текстът може да не е актуален.
 
 **Защо:** действащият закон не е един документ, а първоначалният текст плюс всички изменения — а 81 % от измененията на следените закони са направени в *други* закони (например чрез закона за еврото или закона за бюджета). LexBG чете всеки приет от Народното събрание акт и свързва тези скрити промени със закона, който променят.
+
+**Актуален текст:** LexBG сам прилага измененията към първоначалния текст по реда на влизането им в сила и отбелязва всяка промяна така, както в официалните консолидирани текстове („изм. – ДВ, бр. 72 от 2024 г., в сила от 6.07.2024 г.“). Ако някое изменение не може да бъде приложено автоматично, това се показва при съответния член. Законът за счетоводството съвпада член по член с консолидирания текст на Министерството на финансите.
 
 **Инсталация за една минута** — Claude Desktop → Settings → Developer → Edit Config:
 
