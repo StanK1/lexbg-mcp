@@ -19,7 +19,49 @@
 #     url: https://…/kodeks-na-truda.pdf
 #     institution: Министерство на труда и социалната политика
 #     format: pdf                  # pdf | html | txt (detected when omitted)
-texts: []
+texts:
+  - law: zdds
+    institution: Национална агенция за приходите
+    page: "https://nra.bg/wps/portal/nra/zakonodatelstvo/zakonodatelstvo?contentIDR=47f90954-5a9e-4569-8f83-067f24594905&useDefaultText=0&useDefaultDesc=0"
+    link_text: "Закон за ДДС"
+    url: "https://nra.bg/wps/wcm/connect/nra.bg25863/d8cef699-d86e-42b3-a6a8-26bf10a2e86e/%D0%97%D0%94%D0%94%D0%A1_2026.docx?MOD=AJPERES"
+    format: docx
+  - law: kt
+    institution: Национална агенция за приходите
+    page: "https://nra.bg/wps/portal/nra/zakonodatelstvo/zakonodatelstvo?contentIDR=47f90954-5a9e-4569-8f83-067f24594905&useDefaultText=0&useDefaultDesc=0"
+    link_text: "Кодекс на труда"
+    url: "https://nra.bg/wps/wcm/connect/nra.bg25863/63648ffc-3f9a-431c-86a1-3893043d2fbf/%D0%9A%D0%A2-082026.docx?MOD=AJPERES"
+    format: docx
+  - law: zkpo
+    institution: Национална агенция за приходите
+    page: "https://nra.bg/wps/portal/nra/zakonodatelstvo/zakonodatelstvo?contentIDR=47f90954-5a9e-4569-8f83-067f24594905&useDefaultText=0&useDefaultDesc=0"
+    link_text: "Закон за корпоративното подоходно облагане (ЗКПО)"
+    url: "https://nra.bg/wps/wcm/connect/nra.bg25863/ed10ff12-b25a-4b07-827c-915979acef42/%D0%97%D0%9A%D0%9F%D0%9E+%D1%81%D0%B5%D0%BF%D1%82%D0%B5%D0%BC%D0%B2%D1%80%D0%B8+2026.docx?MOD=AJPERES"
+    format: docx
+  - law: zddfl
+    institution: Национална агенция за приходите
+    page: "https://nra.bg/wps/portal/nra/zakonodatelstvo/zakonodatelstvo?contentIDR=47f90954-5a9e-4569-8f83-067f24594905&useDefaultText=0&useDefaultDesc=0"
+    link_text: "Закон за данъците върху доходите на физическите лица"
+    url: "https://nra.bg/wps/wcm/connect/nra.bg25863/e0daae38-32b9-40b7-8c21-ff7feed98935/%D0%97%D0%94%D0%94%D0%A4%D0%9B+%D1%81%D0%B5%D0%BF%D1%82%D0%B5%D0%BC%D0%B2%D1%80%D0%B8+2026.docx?MOD=AJPERES"
+    format: docx
+  - law: kso
+    institution: Национална агенция за приходите
+    page: "https://nra.bg/wps/portal/nra/zakonodatelstvo/zakonodatelstvo?contentIDR=47f90954-5a9e-4569-8f83-067f24594905&useDefaultText=0&useDefaultDesc=0"
+    link_text: "Кодекс за социално осигуряване"
+    url: "https://nra.bg/wps/wcm/connect/nra.bg25863/8cd3cf0b-a0e9-4039-90c3-aa4c9d29425b/%D0%9A%D0%A1%D0%9E-082026.docx?MOD=AJPERES"
+    format: docx
+  - law: dopk
+    institution: Национална агенция за приходите
+    page: "https://nra.bg/wps/portal/nra/zakonodatelstvo/zakonodatelstvo?contentIDR=47f90954-5a9e-4569-8f83-067f24594905&useDefaultText=0&useDefaultDesc=0"
+    link_text: "Данъчно - осигурителен процесуален кодекс (ДОПК)"
+    url: "https://nra.bg/wps/wcm/connect/nra.bg25863/bdd29916-eb66-4b0d-a99b-0f4f94365a5b/%D0%94%D0%9E%D0%9F%D0%9A-2026.docx?MOD=AJPERES"
+    format: docx
+  - law: zzo
+    institution: Национална агенция за приходите
+    page: "https://nra.bg/wps/portal/nra/zakonodatelstvo/zakonodatelstvo?contentIDR=47f90954-5a9e-4569-8f83-067f24594905&useDefaultText=0&useDefaultDesc=0"
+    link_text: "Закон за здравното осигуряване"
+    url: "https://nra.bg/wps/wcm/connect/nra.bg25863/6746990d-db2e-466e-b8f1-9d4cbcf8635c/%D0%97%D0%97%D0%9E-082026.docx?MOD=AJPERES"
+    format: docx
 
 # Example (Закон за счетоводството, Министерство на финансите, text in force from 6.07.2024).
 # Not enabled because LexBG already compiles ЗСч from its original act; useful to cross-check:

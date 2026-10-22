@@ -27,14 +27,19 @@ jobs:
           restore-keys: raw-v1-
       - name: Top up with new acts
         run: node dist/scripts/fetch-parliament.js --refresh
+      - name: Fetch consolidated texts from institutions
+        continue-on-error: true
+        run: node dist/scripts/fetch-agency.js
       - name: Pack
         run: |
           tar -czf raw-parliament.tgz -C data/raw parliament
-          ls -la raw-parliament.tgz
+          mkdir -p data/raw/agency data/manual
+          tar -czf raw-agency.tgz -C data raw/agency manual
+          ls -la raw-parliament.tgz raw-agency.tgz
       - name: Upload to the draft "raw-snapshot" release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view raw-snapshot >/dev/null 2>&1 || \
             gh release create raw-snapshot --draft --title "Raw parliament.bg snapshot (maintainers)" --notes "Draft. Created by the Raw data snapshot workflow."
-          gh release upload raw-snapshot raw-parliament.tgz --clobber
+          gh release upload raw-snapshot raw-parliament.tgz raw-agency.tgz --clobber

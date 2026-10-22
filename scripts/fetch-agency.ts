@@ -19,23 +19,30 @@ import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import YAML from 'yaml';
 import { htmlToLines, textToLines } from '../src/text/html.js';
-import { bodyFrom, headerIssues, latestIssue, reflowLines } from '../src/text/consolidated.js';
+import { bodyFrom, cleanParagraphs, headerIssues, latestIssue, reflowLines } from '../src/text/consolidated.js';
+import { docxParagraphs } from '../src/text/docx.js';
 import { parseBulgarianAct } from '../src/text/parse-bg.js';
 import { loadRegistry } from '../src/registry.js';
 import { ROOT, argValue, paths, rawDir } from './lib/paths.js';
 
 interface Entry {
   law: string;
-  url: string;
+  /** Direct link to the file. */
+  url?: string;
+  /** Or: the page that links to it, and the link text — institutions re-upload monthly under new URLs. */
+  page?: string;
+  link_text?: string;
   institution: string;
-  format?: 'pdf' | 'html' | 'txt';
+  format?: 'pdf' | 'docx' | 'html' | 'txt';
   note?: string;
 }
 
-function detectFormat(file: string, declared?: string): 'pdf' | 'html' | 'txt' {
-  if (declared === 'pdf' || declared === 'html' || declared === 'txt') return declared;
+function detectFormat(file: string, declared?: string): 'pdf' | 'docx' | 'html' | 'txt' {
+  if (declared === 'pdf' || declared === 'docx' || declared === 'html' || declared === 'txt') return declared;
   const head = fs.readFileSync(file).subarray(0, 512).toString('latin1');
   if (head.startsWith('%PDF')) return 'pdf';
+  if (head.startsWith('PK') && head.includes('[Content_Types].xml') || head.startsWith('PK') && /\.docx$/iu.test(file)) return 'docx';
+  if (head.startsWith('PK')) return 'docx';
   if (/<html|<!doctype|<body|<div/i.test(head)) return 'html';
   return 'txt';
 }
@@ -50,6 +57,18 @@ async function pdfToText(file: string): Promise<string> {
   } catch {
     return execFileSync('pdftotext', ['-enc', 'UTF-8', file, '-'], { maxBuffer: 256 * 1024 * 1024 }).toString('utf8');
   }
+}
+
+/** Find the current link on the institution's page by its text (file URLs change with every update). */
+async function resolveLink(page: string, text: string): Promise<string> {
+  const res = await fetch(page, { headers: { 'User-Agent': 'LexBG (+https://github.com/StanK1/lexbg-mcp)' } });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${page}`);
+  const html = await res.text();
+  const norm = (x: string) => x.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  for (const m of html.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/giu)) {
+    if (norm(m[2]) === text) return new URL(m[1].replace(/&amp;/g, '&'), page).href;
+  }
+  throw new Error(`no link "${text}" on ${page}`);
 }
 
 async function download(url: string, to: string): Promise<void> {
@@ -71,7 +90,8 @@ export async function convert(file: string, format?: string): Promise<{ lines: s
   const fmt = detectFormat(file, format);
   let lines: string[];
   if (fmt === 'pdf') lines = reflowLines((await pdfToText(file)).split('\n'));
-  else if (fmt === 'html') lines = htmlToLines(fs.readFileSync(file, 'utf8'));
+  else if (fmt === 'docx') lines = cleanParagraphs(docxParagraphs(fs.readFileSync(file)));
+  else if (fmt === 'html') lines = cleanParagraphs(htmlToLines(fs.readFileSync(file, 'utf8')));
   else lines = reflowLines(textToLines(fs.readFileSync(file, 'utf8')));
   const issues = headerIssues(lines.join('\n'));
   return { lines: bodyFrom(lines), issues };
@@ -81,7 +101,19 @@ async function importOne(e: Entry, localFile?: string): Promise<Imported> {
   const dir = path.join(rawDir(), 'agency');
   fs.mkdirSync(dir, { recursive: true });
   let file = localFile ? path.resolve(localFile.replace(/^~(?=\/)/, process.env.HOME ?? '~')) : path.join(dir, `${e.law}.download`);
-  if (!localFile) await download(e.url, file);
+  let url = e.url;
+  if (!localFile) {
+    if (e.page && e.link_text) {
+      try {
+        url = await resolveLink(e.page, e.link_text);
+      } catch (err) {
+        if (!url) throw err;
+        console.warn(`  ${e.law}: ${(err as Error).message}; using the stored URL`);
+      }
+    }
+    if (!url) throw new Error('no url (or page + link_text)');
+    await download(url, file);
+  }
   else if (!fs.existsSync(file)) throw new Error(`File not found: ${file}`);
   const { lines, issues } = await convert(file, e.format);
   const provisions = parseBulgarianAct(lines).filter(p => p.kind === 'art').length;
@@ -90,7 +122,8 @@ async function importOne(e: Entry, localFile?: string): Promise<Imported> {
   fs.mkdirSync(paths.manual, { recursive: true });
   fs.writeFileSync(path.join(paths.manual, `${e.law}.txt`), `${lines.join('\n')}\n`);
   const meta: Record<string, unknown> = {
-    source_url: e.url,
+    source_url: url ?? e.page,
+    source_page: e.page,
     institution: e.institution,
     retrieved_at: new Date().toISOString().slice(0, 10),
     // last State Gazette issue included in this consolidated text (from its header)
@@ -98,7 +131,7 @@ async function importOne(e: Entry, localFile?: string): Promise<Imported> {
     note: e.note ?? `Consolidated text published by ${e.institution}.`,
   };
   fs.writeFileSync(path.join(paths.manual, `${e.law}.yml`), YAML.stringify(meta));
-  if (file.endsWith('.download')) fs.renameSync(file, file.replace(/\.download$/, detectFormat(file, e.format) === 'pdf' ? '.pdf' : '.html'));
+  if (file.endsWith('.download')) fs.renameSync(file, file.replace(/\.download$/u, `.${detectFormat(file, e.format)}`));
   return { law: e.law, lines, provisions, issues, through };
 }
 
@@ -122,10 +155,12 @@ async function main(): Promise<void> {
     if (!reg.laws.some(l => l.id === e.law)) { console.warn(`  ${e.law}: unknown law id — skipped`); continue; }
     try {
       const r = await importOne(e, localFile);
+      if (process.env.GITHUB_ACTIONS) console.log(`::notice title=fetch-agency ${e.law}::${r.provisions} articles, through ${r.through ?? 'unknown'}`);
       console.log(`  ${e.law}: ${r.provisions} articles; header lists ${r.issues.length} State Gazette issue(s), latest ${r.through ?? 'unknown'} → data/manual/${e.law}.txt`);
       if (!r.through) console.warn(`  ${e.law}: no "Обн. ДВ … изм. …" header found — set through_gazette in data/manual/${e.law}.yml by hand, or later amendments cannot be applied.`);
     } catch (err) {
       console.error(`  ${e.law}: ${(err as Error).message}`);
+      if (process.env.GITHUB_ACTIONS) console.log(`::warning title=fetch-agency ${e.law}::${(err as Error).message.replace(/\n/g, ' ')}`);
       process.exitCode = 1;
     }
   }

@@ -30,10 +30,30 @@ function isFurniture(l: string): boolean {
  * Join wrapped PDF lines: a line continues the previous one unless it starts a new unit
  * (article, алинея, точка, буква, heading) or the previous line ended a sentence before a heading.
  */
+/**
+ * Article titles ("Обект на облагане" before "Чл. 2.") are headings of the next article, not
+ * text of the previous one. LexBG does not store them (the parliament.bg texts have no place
+ * for them either), so they are dropped instead of being glued to the end of an article.
+ */
+export function isArticleTitle(line: string, next: string | undefined): boolean {
+  if (!next || !/^Чл\.\s*\d/u.test(next)) return false;
+  if (UNIT_START.some(re => re.test(line)) || isHeadingLine(line)) return false;
+  return line.length <= 160 && !/[.;:,]$/u.test(line);
+}
+
+/** Paragraph-based sources (.docx, HTML): drop article titles and page furniture. */
+export function cleanParagraphs(lines: string[]): string[] {
+  const l = lines.map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  return l.filter((x, i) => !isFurniture(x) && !isArticleTitle(x, l[i + 1]));
+}
+
 export function reflowLines(raw: string[]): string[] {
   const out: string[] = [];
-  for (const line of raw.map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean)) {
+  const lines = raw.map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     if (isFurniture(line)) continue;
+    if (isArticleTitle(line, lines[i + 1]) && out.length && /[.;:]$/u.test(out[out.length - 1])) continue;
     const starts = UNIT_START.some(re => re.test(line)) || isHeadingLine(line);
     const prev = out[out.length - 1];
     // "Раздел I" / "Глава пета" on its own line: the next line is its title, not a continuation

@@ -183,3 +183,18 @@ describe('consolidated texts from institutions', async () => {
     expect(latestIssue(issues)).toBe('13/2019');
   });
 });
+
+describe('docx import', async () => {
+  const fs = await import('node:fs');
+  const { docxParagraphs } = await import('../src/text/docx.js');
+  const { cleanParagraphs, headerIssues, bodyFrom } = await import('../src/text/consolidated.js');
+  it('reads paragraphs, drops article titles and finds the last State Gazette issue', () => {
+    const paras = docxParagraphs(fs.readFileSync('fixtures/test-agency.docx'));
+    expect(paras[1]).toBe('Обн. ДВ. бр.63 от 4 август 2006г., изм. ДВ. бр.115 от 30 декември 2025г.');
+    expect(headerIssues(paras.join('\n'))).toEqual(['63/2006', '115/2025']);
+    expect(bodyFrom(cleanParagraphs(paras))).toEqual([
+      'Глава първа', 'ОБЩИ ПОЛОЖЕНИЯ', 'Чл. 1. Този закон урежда & теста.',
+      'Чл. 2. (Изм. - ДВ, бр. 95 от 2015 г.) (1) Първа алинея.', '(2) Втора алинея.', 'Чл. 3. Трети.',
+    ]);
+  });
+});
