@@ -23,7 +23,7 @@ export interface DataManifest {
   bytes: number;
   gz_sha256: string;
   gz_bytes: number;
-  laws: { tracked: number; consolidated: number; original: number; missing: number };
+  laws: { tracked: number; consolidated: number; compiled: number; original: number; missing: number };
   eu_acts_with_text: number;
   acts: number;
   provisions: number;
@@ -54,7 +54,7 @@ function main(): void {
     bytes: raw.length,
     gz_sha256: sha256(gz),
     gz_bytes: gz.length,
-    laws: { tracked: bg.length, consolidated: n('consolidated'), original: n('original'), missing: n('missing') },
+    laws: { tracked: bg.length, consolidated: n('consolidated'), compiled: n('compiled'), original: n('original'), missing: n('missing') },
     eu_acts_with_text: cov.filter(c => c.kind === 'eu' && c.text_status !== 'missing').length,
     acts: count('SELECT COUNT(*) AS n FROM acts'),
     provisions: count('SELECT COUNT(*) AS n FROM provisions'),
@@ -74,7 +74,7 @@ function main(): void {
     `Built **${manifest.built_at}** from parliament.bg and EUR-Lex. Latest act in the catalogue: ${manifest.latest_act_date ?? '–'}.`,
     '',
     `- ${manifest.acts} promulgated acts, ${manifest.provisions} provisions`,
-    `- Bulgarian laws: ${manifest.laws.tracked} tracked — ${manifest.laws.consolidated} consolidated, ${manifest.laws.original} original text, ${manifest.laws.missing} amendment history only`,
+    `- Bulgarian laws: ${manifest.laws.tracked} tracked — ${manifest.laws.compiled} current text compiled by LexBG, ${manifest.laws.consolidated} consolidated, ${manifest.laws.original} original text, ${manifest.laws.missing} amendment history only`,
     `- EU acts with text: ${manifest.eu_acts_with_text}`,
     `- Download: ${mb(manifest.gz_bytes)} compressed, ${mb(manifest.bytes)} on disk`,
     '',
